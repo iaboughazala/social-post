@@ -1,0 +1,100 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "compose": "Compose",
+    "calendar": "Calendar",
+    "posts": "Posts",
+    "analytics": "Analytics",
+    "accounts": "Accounts",
+    "team": "Team",
+    "approvals": "Approvals",
+    "settings": "Settings",
+    "billing": "Billing"
+  },
+  "auth": {
+    "login": "Login",
+    "register": "Register",
+    "email": "Email",
+    "password": "Password",
+    "name": "Name",
+    "forgotPassword": "Forgot password?",
+    "loginTitle": "Welcome back",
+    "registerTitle": "Create an account",
+    "loginSubtitle": "Sign in to manage your social media",
+    "registerSubtitle": "Start scheduling your posts today",
+    "loginButton": "Sign in",
+    "registerButton": "Create account",
+    "orContinueWith": "Or continue with",
+    "noAccount": "Don't have an account?",
+    "haveAccount": "Already have an account?"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "search": "Search",
+    "loading": "Loading...",
+    "error": "Something went wrong",
+    "success": "Success",
+    "back": "Back",
+    "next": "Next",
+    "confirm": "Confirm"
+  },
+  "landing": {
+    "heroTitle": "Schedule your social media posts with ease",
+    "heroSubtitle": "Plan, create, and publish content across all your social platforms from one place.",
+    "features": "Features",
+    "pricing": "Pricing",
+    "cta": "Get started for free"
+  },
+  "compose": {
+    "title": "Compose Post",
+    "contentPlaceholder": "What's on your mind?",
+    "selectPlatforms": "Select platforms",
+    "schedule": "Schedule",
+    "publishNow": "Publish now",
+    "draft": "Save as draft",
+    "aiGenerate": "Generate with AI",
+    "mediaUpload": "Upload media"
+  },
+  "calendar": {
+    "title": "Content Calendar",
+    "today": "Today",
+    "month": "Month",
+    "week": "Week"
+  },
+  "posts": {
+    "title": "Posts",
+    "all": "All",
+    "scheduled": "Scheduled",
+    "published": "Published",
+    "draft": "Draft",
+    "failed": "Failed"
+  },
+  "analytics": {
+    "title": "Analytics",
+    "followers": "Followers",
+    "reach": "Reach",
+    "engagement": "Engagement",
+    "impressions": "Impressions"
+  },
+  "team": {
+    "title": "Team",
+    "invite": "Invite member",
+    "members": "Members",
+    "role": "Role",
+    "owner": "Owner",
+    "admin": "Admin",
+    "editor": "Editor",
+    "viewer": "Viewer"
+  },
+  "billing": {
+    "title": "Billing",
+    "currentPlan": "Current plan",
+    "upgrade": "Upgrade",
+    "free": "Free",
+    "pro": "Pro",
+    "business": "Business"
+  }
+}

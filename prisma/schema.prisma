@@ -1,0 +1,208 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String    @id @default(cuid())
+  name           String?
+  email          String    @unique
+  emailVerified  DateTime?
+  image          String?
+  password       String?
+  locale         String    @default("en")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  accounts       Account[]
+  sessions       Session[]
+  teamMembers    TeamMember[]
+  posts          Post[]
+  approvals      PostApproval[] @relation("reviewer")
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+model Team {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  plan      String   @default("free")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members        TeamMember[]
+  socialAccounts SocialAccount[]
+  posts          Post[]
+  subscription   Subscription?
+
+  @@map("teams")
+}
+
+model TeamMember {
+  id     String @id @default(cuid())
+  role   String @default("editor")
+  userId String
+  teamId String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, teamId])
+  @@map("team_members")
+}
+
+model SocialAccount {
+  id           String   @id @default(cuid())
+  platform     String
+  platformId   String
+  name         String
+  username     String?
+  avatar       String?  @db.Text
+  accessToken  String   @db.Text
+  refreshToken String?  @db.Text
+  expiresAt    DateTime?
+  teamId       String
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  team         Team          @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  postAccounts PostAccount[]
+  analytics    Analytics[]
+
+  @@unique([platform, platformId])
+  @@map("social_accounts")
+}
+
+model Post {
+  id          String    @id @default(cuid())
+  content     String    @db.Text
+  mediaUrls   String?   @db.Text
+  status      String    @default("draft")
+  scheduledAt DateTime?
+  publishedAt DateTime?
+  errorMsg    String?   @db.Text
+  teamId      String
+  authorId    String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  team         Team           @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  author       User           @relation(fields: [authorId], references: [id])
+  postAccounts PostAccount[]
+  approvals    PostApproval[]
+
+  @@index([teamId, status])
+  @@index([status, scheduledAt])
+  @@map("posts")
+}
+
+model PostAccount {
+  id              String  @id @default(cuid())
+  postId          String
+  socialAccountId String
+  platformPostId  String?
+  status          String  @default("pending")
+  errorMsg        String? @db.Text
+
+  post          Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
+  socialAccount SocialAccount @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, socialAccountId])
+  @@map("post_accounts")
+}
+
+model PostApproval {
+  id         String   @id @default(cuid())
+  postId     String
+  reviewerId String?
+  status     String   @default("pending")
+  comment    String?  @db.Text
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  post     Post  @relation(fields: [postId], references: [id], onDelete: Cascade)
+  reviewer User? @relation("reviewer", fields: [reviewerId], references: [id])
+
+  @@map("post_approvals")
+}
+
+model Analytics {
+  id              String   @id @default(cuid())
+  socialAccountId String
+  date            DateTime @db.Date
+  followers       Int      @default(0)
+  reach           Int      @default(0)
+  impressions     Int      @default(0)
+  likes           Int      @default(0)
+  comments        Int      @default(0)
+  shares          Int      @default(0)
+  clicks          Int      @default(0)
+
+  socialAccount SocialAccount @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
+
+  @@unique([socialAccountId, date])
+  @@map("analytics")
+}
+
+model Subscription {
+  id               String    @id @default(cuid())
+  teamId           String    @unique
+  stripeCustomerId String?   @unique
+  stripePriceId    String?
+  stripeSubId      String?   @unique
+  plan             String    @default("free")
+  status           String    @default("active")
+  currentPeriodEnd DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@map("subscriptions")
+}

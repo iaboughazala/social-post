@@ -1,0 +1,100 @@
+{
+  "nav": {
+    "dashboard": "لوحة التحكم",
+    "compose": "إنشاء منشور",
+    "calendar": "التقويم",
+    "posts": "المنشورات",
+    "analytics": "التحليلات",
+    "accounts": "الحسابات",
+    "team": "الفريق",
+    "approvals": "الموافقات",
+    "settings": "الإعدادات",
+    "billing": "الفوترة"
+  },
+  "auth": {
+    "login": "تسجيل الدخول",
+    "register": "إنشاء حساب",
+    "email": "البريد الإلكتروني",
+    "password": "كلمة المرور",
+    "name": "الاسم",
+    "forgotPassword": "نسيت كلمة المرور؟",
+    "loginTitle": "مرحبًا بعودتك",
+    "registerTitle": "إنشاء حساب جديد",
+    "loginSubtitle": "سجّل الدخول لإدارة حساباتك على وسائل التواصل",
+    "registerSubtitle": "ابدأ بجدولة منشوراتك اليوم",
+    "loginButton": "تسجيل الدخول",
+    "registerButton": "إنشاء الحساب",
+    "orContinueWith": "أو تابع باستخدام",
+    "noAccount": "ليس لديك حساب؟",
+    "haveAccount": "لديك حساب بالفعل؟"
+  },
+  "common": {
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "delete": "حذف",
+    "edit": "تعديل",
+    "search": "بحث",
+    "loading": "جارٍ التحميل...",
+    "error": "حدث خطأ ما",
+    "success": "تمت العملية بنجاح",
+    "back": "رجوع",
+    "next": "التالي",
+    "confirm": "تأكيد"
+  },
+  "landing": {
+    "heroTitle": "جدوِل منشوراتك على وسائل التواصل بسهولة",
+    "heroSubtitle": "خطّط وأنشئ وانشر المحتوى عبر جميع منصاتك من مكان واحد.",
+    "features": "المميزات",
+    "pricing": "الأسعار",
+    "cta": "ابدأ مجانًا"
+  },
+  "compose": {
+    "title": "إنشاء منشور",
+    "contentPlaceholder": "ما الذي تريد مشاركته؟",
+    "selectPlatforms": "اختر المنصات",
+    "schedule": "جدولة",
+    "publishNow": "نشر الآن",
+    "draft": "حفظ كمسودة",
+    "aiGenerate": "توليد بالذكاء الاصطناعي",
+    "mediaUpload": "رفع وسائط"
+  },
+  "calendar": {
+    "title": "تقويم المحتوى",
+    "today": "اليوم",
+    "month": "شهري",
+    "week": "أسبوعي"
+  },
+  "posts": {
+    "title": "المنشورات",
+    "all": "الكل",
+    "scheduled": "مجدولة",
+    "published": "منشورة",
+    "draft": "مسودة",
+    "failed": "فشلت"
+  },
+  "analytics": {
+    "title": "التحليلات",
+    "followers": "المتابعون",
+    "reach": "الوصول",
+    "engagement": "التفاعل",
+    "impressions": "مرات الظهور"
+  },
+  "team": {
+    "title": "الفريق",
+    "invite": "دعوة عضو",
+    "members": "الأعضاء",
+    "role": "الدور",
+    "owner": "المالك",
+    "admin": "مدير",
+    "editor": "محرر",
+    "viewer": "مشاهد"
+  },
+  "billing": {
+    "title": "الفوترة",
+    "currentPlan": "الخطة الحالية",
+    "upgrade": "ترقية",
+    "free": "مجانية",
+    "pro": "احترافية",
+    "business": "أعمال"
+  }
+}
