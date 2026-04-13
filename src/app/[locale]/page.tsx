@@ -1,4 +1,5 @@
 import { useTranslations } from "next-intl";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -186,30 +187,17 @@ export default function LandingPage() {
             {t("heroSubtitle")}
           </p>
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Button size="lg" className="text-base px-8 h-12">
-              {t("cta")}
-              <ArrowRight className="size-4" />
-            </Button>
-            <Button variant="outline" size="lg" className="text-base px-8 h-12">
-              Learn More
-            </Button>
-          </div>
-
-          {/* Decorative elements */}
-          <div className="mt-16 relative mx-auto max-w-4xl">
-            <div className="rounded-xl border bg-card shadow-2xl shadow-primary/5 overflow-hidden">
-              <div className="h-8 bg-muted/50 border-b flex items-center px-4 gap-2">
-                <div className="size-3 rounded-full bg-red-400" />
-                <div className="size-3 rounded-full bg-yellow-400" />
-                <div className="size-3 rounded-full bg-green-400" />
-              </div>
-              <div className="aspect-[16/9] bg-gradient-to-br from-muted/30 to-muted flex items-center justify-center">
-                <div className="text-center text-muted-foreground">
-                  <LayoutGrid className="size-16 mx-auto mb-4 opacity-20" />
-                  <p className="text-sm opacity-50">Dashboard Preview</p>
-                </div>
-              </div>
-            </div>
+            <Link href="/en/register">
+              <Button size="lg" className="text-base px-8 h-12">
+                {t("cta")}
+                <ArrowRight className="size-4" />
+              </Button>
+            </Link>
+            <Link href="#features">
+              <Button variant="outline" size="lg" className="text-base px-8 h-12">
+                Learn More
+              </Button>
+            </Link>
           </div>
         </div>
       </section>
@@ -315,13 +303,15 @@ export default function LandingPage() {
                   </ul>
                 </CardContent>
                 <CardFooter>
-                  <Button
-                    variant={plan.popular ? "default" : "outline"}
-                    className="w-full"
-                    size="lg"
-                  >
-                    {plan.cta}
-                  </Button>
+                  <Link href="/en/register" className="w-full">
+                    <Button
+                      variant={plan.popular ? "default" : "outline"}
+                      className="w-full"
+                      size="lg"
+                    >
+                      {plan.cta}
+                    </Button>
+                  </Link>
                 </CardFooter>
               </Card>
             ))}
