@@ -70,7 +70,7 @@ const PLATFORM_CONFIG: Record<
     label: "X / Twitter",
     color: "text-neutral-900 dark:text-neutral-100",
     bgColor: "bg-neutral-900 hover:bg-neutral-800 dark:bg-neutral-100 dark:hover:bg-neutral-200 dark:text-neutral-900",
-    available: false,
+    available: true,
   },
 };
 
