@@ -56,7 +56,7 @@ const PLATFORM_CONFIG: Record<
     label: "Facebook",
     color: "text-blue-600",
     bgColor: "bg-blue-600 hover:bg-blue-700",
-    available: false,
+    available: true,
   },
   instagram: {
     icon: InstagramIcon,

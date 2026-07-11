@@ -7,41 +7,58 @@ export class FacebookClient {
     this.accessToken = accessToken;
   }
 
+  /**
+   * Publish to a Facebook Page's feed. `accessToken` MUST be the page access
+   * token (not the user token). If mediaUrl is provided, uses /{page}/photos
+   * with a `url` param — Facebook fetches it server-side.
+   */
   async publishPost(pageId: string, content: string, mediaUrl?: string) {
     if (mediaUrl) {
-      const photoUrl = `${GRAPH_API_BASE}/${pageId}/photos`;
-      const res = await fetch(photoUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          url: mediaUrl,
-          caption: content,
-          access_token: this.accessToken,
-        }),
+      const params = new URLSearchParams({
+        url: mediaUrl,
+        caption: content,
+        access_token: this.accessToken,
       });
-      return res.json();
+      const res = await fetch(`${GRAPH_API_BASE}/${pageId}/photos`, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: params.toString(),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        throw new Error(
+          `Facebook /photos error (${res.status}): ${data.error?.message || JSON.stringify(data)}`
+        );
+      }
+      return data;
     }
 
-    const url = `${GRAPH_API_BASE}/${pageId}/feed`;
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        message: content,
-        access_token: this.accessToken,
-      }),
+    const params = new URLSearchParams({
+      message: content,
+      access_token: this.accessToken,
     });
-    return res.json();
+    const res = await fetch(`${GRAPH_API_BASE}/${pageId}/feed`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: params.toString(),
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) {
+      throw new Error(
+        `Facebook /feed error (${res.status}): ${data.error?.message || JSON.stringify(data)}`
+      );
+    }
+    return data;
   }
 
   async getPageInsights(pageId: string) {
-    const url = `${GRAPH_API_BASE}/${pageId}/insights?metric=page_impressions,page_engaged_users&period=day&access_token=${this.accessToken}`;
+    const url = `${GRAPH_API_BASE}/${pageId}/insights?metric=page_impressions,page_engaged_users&period=day&access_token=${encodeURIComponent(this.accessToken)}`;
     const res = await fetch(url);
     return res.json();
   }
 
   async getPageInfo(pageId: string) {
-    const url = `${GRAPH_API_BASE}/${pageId}?fields=id,name,username,picture&access_token=${this.accessToken}`;
+    const url = `${GRAPH_API_BASE}/${pageId}?fields=id,name,username,picture&access_token=${encodeURIComponent(this.accessToken)}`;
     const res = await fetch(url);
     return res.json();
   }
