@@ -1,15 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useEffect, useState } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import {
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -27,95 +24,124 @@ import {
   TwitterIcon,
   LinkedinIcon,
 } from "@/components/icons/social-icons";
-import { Plus, RefreshCw, Unlink } from "lucide-react";
+import { Plus, RefreshCw, Unlink, Loader2 } from "lucide-react";
 
 type Platform = "facebook" | "instagram" | "twitter" | "linkedin";
 
-interface ConnectedAccount {
+interface ApiAccount {
   id: string;
   platform: Platform;
+  platformId: string;
   name: string;
-  username: string;
-  status: "active" | "expired";
-  lastSynced: Date;
+  username: string | null;
+  avatar: string | null;
+  isActive: boolean;
+  expiresAt: string | null;
+  createdAt: string;
 }
 
 const PLATFORM_CONFIG: Record<
   Platform,
-  { icon: React.ElementType; label: string; color: string; bgColor: string }
+  { icon: React.ElementType; label: string; color: string; bgColor: string; available: boolean }
 > = {
+  linkedin: {
+    icon: LinkedinIcon,
+    label: "LinkedIn",
+    color: "text-blue-700",
+    bgColor: "bg-blue-700 hover:bg-blue-800",
+    available: true,
+  },
   facebook: {
     icon: FacebookIcon,
     label: "Facebook",
     color: "text-blue-600",
     bgColor: "bg-blue-600 hover:bg-blue-700",
+    available: false,
   },
   instagram: {
     icon: InstagramIcon,
     label: "Instagram",
     color: "text-pink-600",
     bgColor: "bg-gradient-to-br from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600",
+    available: false,
   },
   twitter: {
     icon: TwitterIcon,
     label: "X / Twitter",
     color: "text-neutral-900 dark:text-neutral-100",
     bgColor: "bg-neutral-900 hover:bg-neutral-800 dark:bg-neutral-100 dark:hover:bg-neutral-200 dark:text-neutral-900",
-  },
-  linkedin: {
-    icon: LinkedinIcon,
-    label: "LinkedIn",
-    color: "text-blue-700",
-    bgColor: "bg-blue-700 hover:bg-blue-800",
+    available: false,
   },
 };
 
-const now = new Date();
-
-const MOCK_ACCOUNTS: ConnectedAccount[] = [
-  {
-    id: "1",
-    platform: "facebook",
-    name: "Social Post Official",
-    username: "@socialpost",
-    status: "active",
-    lastSynced: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 14, 30),
-  },
-  {
-    id: "2",
-    platform: "instagram",
-    name: "Social Post",
-    username: "@socialpost.app",
-    status: "active",
-    lastSynced: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 14, 30),
-  },
-  {
-    id: "3",
-    platform: "linkedin",
-    name: "Social Post Inc.",
-    username: "social-post-inc",
-    status: "expired",
-    lastSynced: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 14, 9, 0),
-  },
-];
+function isExpired(expiresAt: string | null): boolean {
+  if (!expiresAt) return false;
+  return new Date(expiresAt).getTime() < Date.now();
+}
 
 export default function AccountsPage() {
-  const t = useTranslations();
-  const [accounts, setAccounts] = useState(MOCK_ACCOUNTS);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [accounts, setAccounts] = useState<ApiAccount[]>([]);
+  const [loading, setLoading] = useState(true);
   const [connectOpen, setConnectOpen] = useState(false);
 
+  async function fetchAccounts() {
+    try {
+      const res = await fetch("/api/accounts", { cache: "no-store" });
+      if (!res.ok) throw new Error("Failed to load accounts");
+      const data = await res.json();
+      setAccounts(data.accounts || []);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to load accounts");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    fetchAccounts();
+  }, []);
+
+  useEffect(() => {
+    const connected = searchParams.get("connected");
+    const error = searchParams.get("error");
+    if (connected) {
+      const label = PLATFORM_CONFIG[connected as Platform]?.label || connected;
+      toast.success(`${label} connected successfully`);
+      router.replace("/en/accounts");
+    } else if (error) {
+      toast.error(`Connection failed: ${error}`);
+      router.replace("/en/accounts");
+    }
+  }, [searchParams, router]);
+
   const handleConnect = (platform: Platform) => {
-    toast.info("Coming soon - API keys required");
+    const config = PLATFORM_CONFIG[platform];
+    if (!config.available) {
+      toast.info(`${config.label} integration is not available yet`);
+      return;
+    }
     setConnectOpen(false);
+    window.location.href = `/api/accounts/connect/${platform}`;
   };
 
-  const handleReconnect = (accountId: string) => {
-    toast.info("Coming soon - API keys required");
+  const handleReconnect = (platform: Platform) => {
+    handleConnect(platform);
   };
 
-  const handleDisconnect = (accountId: string) => {
-    setAccounts((prev) => prev.filter((a) => a.id !== accountId));
-    toast.success("Account disconnected");
+  const handleDisconnect = async (accountId: string) => {
+    if (!confirm("Are you sure you want to disconnect this account?")) return;
+    try {
+      const res = await fetch(`/api/accounts?id=${accountId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("Failed to disconnect");
+      setAccounts((prev) => prev.filter((a) => a.id !== accountId));
+      toast.success("Account disconnected");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to disconnect");
+    }
   };
 
   return (
@@ -154,10 +180,16 @@ export default function AccountsPage() {
                     <button
                       key={key}
                       onClick={() => handleConnect(key)}
-                      className={`flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-white transition-colors ${config.bgColor}`}
+                      disabled={!config.available}
+                      className={`relative flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-white transition-colors ${config.bgColor} disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
                       <Icon className="size-5" />
                       {config.label}
+                      {!config.available && (
+                        <span className="absolute top-1 right-1 text-[10px] bg-white/20 px-1.5 py-0.5 rounded">
+                          Soon
+                        </span>
+                      )}
                     </button>
                   );
                 }
@@ -167,7 +199,13 @@ export default function AccountsPage() {
         </Dialog>
       </div>
 
-      {accounts.length === 0 ? (
+      {loading ? (
+        <Card>
+          <CardContent className="flex items-center justify-center py-12">
+            <Loader2 className="size-6 animate-spin text-muted-foreground" />
+          </CardContent>
+        </Card>
+      ) : accounts.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
             <Unlink className="size-10 text-muted-foreground/30 mb-3" />
@@ -181,7 +219,10 @@ export default function AccountsPage() {
         <div className="grid gap-4">
           {accounts.map((account) => {
             const config = PLATFORM_CONFIG[account.platform];
+            if (!config) return null;
             const Icon = config.icon;
+            const expired = isExpired(account.expiresAt);
+            const status: "active" | "expired" = expired ? "expired" : "active";
 
             return (
               <Card key={account.id}>
@@ -196,23 +237,30 @@ export default function AccountsPage() {
                     <div className="flex items-center gap-2">
                       <p className="font-medium text-sm">{account.name}</p>
                       <Badge
-                        variant={
-                          account.status === "active" ? "default" : "destructive"
-                        }
+                        variant={status === "active" ? "default" : "destructive"}
                         className={
-                          account.status === "active"
+                          status === "active"
                             ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
                             : ""
                         }
                       >
-                        {account.status === "active" ? "Active" : "Expired"}
+                        {status === "active" ? "Active" : "Expired"}
                       </Badge>
                     </div>
+                    {account.username && (
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {account.username}
+                      </p>
+                    )}
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {account.username}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Last synced: {format(account.lastSynced, "MMM d, yyyy 'at' h:mm a")}
+                      Connected: {format(new Date(account.createdAt), "MMM d, yyyy")}
+                      {account.expiresAt && (
+                        <>
+                          {" • "}
+                          {expired ? "Expired" : "Expires"}:{" "}
+                          {format(new Date(account.expiresAt), "MMM d, yyyy")}
+                        </>
+                      )}
                     </p>
                   </div>
 
@@ -220,7 +268,7 @@ export default function AccountsPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleReconnect(account.id)}
+                      onClick={() => handleReconnect(account.platform)}
                     >
                       <RefreshCw className="size-3.5" />
                       Reconnect

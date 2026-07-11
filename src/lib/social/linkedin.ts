@@ -1,6 +1,6 @@
 const REST_BASE = "https://api.linkedin.com/rest";
 const V2_BASE = "https://api.linkedin.com/v2";
-const LINKEDIN_VERSION = "202409";
+const LINKEDIN_VERSION = "202604";
 
 export class LinkedInClient {
   private accessToken: string;
