@@ -15,8 +15,11 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           password: ${{ secrets.SERVER_PASSWORD }}
           script: |
-            cd /var/www/social-post
+            set -e
+            cd /opt/social-post/source
             git pull origin main
-            npm install
+            npm ci --no-audit --no-fund
+            npx prisma generate
             npm run build
-            pm2 restart social-post
+            cd /opt/social-post
+            docker compose up -d --build

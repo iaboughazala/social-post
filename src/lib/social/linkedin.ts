@@ -1,4 +1,6 @@
-const LINKEDIN_API_BASE = "https://api.linkedin.com/v2";
+const REST_BASE = "https://api.linkedin.com/rest";
+const V2_BASE = "https://api.linkedin.com/v2";
+const LINKEDIN_VERSION = "202409";
 
 export class LinkedInClient {
   private accessToken: string;
@@ -7,111 +9,106 @@ export class LinkedInClient {
     this.accessToken = accessToken;
   }
 
-  private get headers() {
+  private get restHeaders() {
     return {
       Authorization: `Bearer ${this.accessToken}`,
       "Content-Type": "application/json",
+      "LinkedIn-Version": LINKEDIN_VERSION,
       "X-Restli-Protocol-Version": "2.0.0",
     };
   }
 
+  /**
+   * Publish a text (and optional single-image) post using the Posts API.
+   * personId is the LinkedIn member sub (from OpenID userinfo).
+   */
   async publishPost(personId: string, content: string, mediaUrl?: string) {
-    let media: Record<string, unknown>[] | undefined;
+    const author = `urn:li:person:${personId}`;
 
-    if (mediaUrl) {
-      const asset = await this.uploadImage(personId, mediaUrl);
-      media = [
-        {
-          status: "READY",
-          description: { text: content.substring(0, 200) },
-          media: asset,
-          title: { text: "Post media" },
-        },
-      ];
-    }
-
-    const ugcPost: Record<string, unknown> = {
-      author: `urn:li:person:${personId}`,
+    const body: Record<string, unknown> = {
+      author,
+      commentary: content,
+      visibility: "PUBLIC",
+      distribution: {
+        feedDistribution: "MAIN_FEED",
+        targetEntities: [],
+        thirdPartyDistributionChannels: [],
+      },
       lifecycleState: "PUBLISHED",
-      specificContent: {
-        "com.linkedin.ugc.ShareContent": {
-          shareCommentary: { text: content },
-          shareMediaCategory: media ? "IMAGE" : "NONE",
-          ...(media ? { media } : {}),
-        },
-      },
-      visibility: {
-        "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC",
-      },
+      isReshareDisabledByAuthor: false,
     };
 
-    const res = await fetch(`${LINKEDIN_API_BASE}/ugcPosts`, {
+    if (mediaUrl) {
+      const imageUrn = await this.uploadImage(author, mediaUrl);
+      body.content = {
+        media: {
+          id: imageUrn,
+        },
+      };
+    }
+
+    const res = await fetch(`${REST_BASE}/posts`, {
       method: "POST",
-      headers: this.headers,
-      body: JSON.stringify(ugcPost),
+      headers: this.restHeaders,
+      body: JSON.stringify(body),
     });
 
-    const data = await res.json();
     if (!res.ok) {
-      throw new Error(
-        `LinkedIn API error: ${data.message || JSON.stringify(data)}`
-      );
+      const errText = await res.text();
+      throw new Error(`LinkedIn Posts API error (${res.status}): ${errText}`);
     }
-    return data;
+
+    const postUrn = res.headers.get("x-restli-id") || res.headers.get("x-linkedin-id");
+    return { id: postUrn };
   }
 
-  private async uploadImage(
-    personId: string,
-    mediaUrl: string
-  ): Promise<string> {
-    // Step 1: Register upload
-    const registerRes = await fetch(
-      `${LINKEDIN_API_BASE}/assets?action=registerUpload`,
-      {
-        method: "POST",
-        headers: this.headers,
-        body: JSON.stringify({
-          registerUploadRequest: {
-            recipes: ["urn:li:digitalmediaRecipe:feedshare-image"],
-            owner: `urn:li:person:${personId}`,
-            serviceRelationships: [
-              {
-                relationshipType: "OWNER",
-                identifier: "urn:li:userGeneratedContent",
-              },
-            ],
-          },
-        }),
-      }
-    );
-    const registerData = await registerRes.json();
-    const uploadUrl =
-      registerData.value.uploadMechanism[
-        "com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest"
-      ].uploadUrl;
-    const asset = registerData.value.asset;
+  /**
+   * Upload an image via the Images API (rest) and return the image URN
+   * (e.g. urn:li:image:xxx) suitable for the Posts API `content.media.id`.
+   */
+  private async uploadImage(ownerUrn: string, mediaUrl: string): Promise<string> {
+    // Step 1: initialize upload
+    const initRes = await fetch(`${REST_BASE}/images?action=initializeUpload`, {
+      method: "POST",
+      headers: this.restHeaders,
+      body: JSON.stringify({
+        initializeUploadRequest: { owner: ownerUrn },
+      }),
+    });
+    if (!initRes.ok) {
+      throw new Error(`LinkedIn image init failed: ${await initRes.text()}`);
+    }
+    const initData = await initRes.json();
+    const uploadUrl = initData.value.uploadUrl as string;
+    const imageUrn = initData.value.image as string;
 
-    // Step 2: Download media and upload to LinkedIn
+    // Step 2: download source and PUT to LinkedIn upload URL
     const mediaRes = await fetch(mediaUrl);
-    const mediaBuffer = await mediaRes.arrayBuffer();
+    if (!mediaRes.ok) {
+      throw new Error(`Failed to fetch media at ${mediaUrl}`);
+    }
+    const mediaBuffer = Buffer.from(await mediaRes.arrayBuffer());
+    const contentType = mediaRes.headers.get("content-type") || "image/jpeg";
 
-    await fetch(uploadUrl, {
+    const uploadRes = await fetch(uploadUrl, {
       method: "PUT",
       headers: {
         Authorization: `Bearer ${this.accessToken}`,
-        "Content-Type": mediaRes.headers.get("content-type") || "image/jpeg",
+        "Content-Type": contentType,
       },
-      body: Buffer.from(mediaBuffer),
+      body: mediaBuffer,
     });
+    if (!uploadRes.ok) {
+      throw new Error(`LinkedIn image upload failed: ${uploadRes.status}`);
+    }
 
-    return asset;
+    return imageUrn;
   }
 
   async getProfile() {
-    const res = await fetch(
-      `${LINKEDIN_API_BASE}/me?projection=(id,localizedFirstName,localizedLastName,profilePicture(displayImage~:playableStreams))`,
-      { headers: this.headers }
-    );
+    const res = await fetch(`${V2_BASE}/userinfo`, {
+      headers: { Authorization: `Bearer ${this.accessToken}` },
+    });
     return res.json();
   }
 }
