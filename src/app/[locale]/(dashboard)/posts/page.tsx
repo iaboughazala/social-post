@@ -1,22 +1,23 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
-import { useTranslations } from "next-intl";
+import { useCallback, useEffect, useState } from "react";
+import { useTranslations, useLocale } from "next-intl";
+import { toast } from "sonner";
+import Link from "next/link";
 import { format } from "date-fns";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Search,
-  Edit3,
   Trash2,
-  Copy,
-  MoreHorizontal,
   ChevronLeft,
   ChevronRight,
   FileText,
+  Loader2,
+  Sparkles,
+  ExternalLink,
 } from "lucide-react";
 import {
   FacebookIcon,
@@ -27,15 +28,20 @@ import {
 import { cn } from "@/lib/utils";
 
 type Platform = "facebook" | "instagram" | "twitter" | "linkedin";
-type PostStatus = "all" | "draft" | "scheduled" | "published" | "failed";
+type PostStatus = "all" | "draft" | "scheduled" | "publishing" | "published" | "failed";
 
-interface Post {
+interface ApiPost {
   id: string;
   content: string;
-  platforms: Platform[];
-  status: Exclude<PostStatus, "all">;
-  date: Date;
-  engagement?: { likes: number; comments: number; shares: number };
+  status: string;
+  scheduledAt: string | null;
+  publishedAt: string | null;
+  errorMsg: string | null;
+  createdAt: string;
+  postAccounts: {
+    socialAccount: { platform: string; name: string };
+  }[];
+  sourceVariant: { id: string } | null;
 }
 
 const PLATFORM_ICONS: Record<Platform, React.ElementType> = {
@@ -53,7 +59,7 @@ const PLATFORM_COLORS: Record<Platform, string> = {
 };
 
 const STATUS_STYLES: Record<
-  Exclude<PostStatus, "all">,
+  string,
   { color: string; label: string }
 > = {
   draft: {
@@ -63,6 +69,10 @@ const STATUS_STYLES: Record<
   scheduled: {
     color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
     label: "Scheduled",
+  },
+  publishing: {
+    color: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+    label: "Publishing",
   },
   published: {
     color: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
@@ -74,129 +84,105 @@ const STATUS_STYLES: Record<
   },
 };
 
-const now = new Date();
-
-const MOCK_POSTS: Post[] = [
-  {
-    id: "1",
-    content: "Exciting product launch coming this week! Stay tuned for something amazing that will change the way you work.",
-    platforms: ["facebook", "instagram"],
-    status: "published",
-    date: new Date(now.getFullYear(), now.getMonth(), 3, 9, 0),
-    engagement: { likes: 234, comments: 18, shares: 42 },
-  },
-  {
-    id: "2",
-    content: "5 tips to boost your social media engagement this quarter. Thread incoming!",
-    platforms: ["twitter", "linkedin"],
-    status: "published",
-    date: new Date(now.getFullYear(), now.getMonth(), 5, 14, 0),
-    engagement: { likes: 89, comments: 12, shares: 31 },
-  },
-  {
-    id: "3",
-    content: "Behind the scenes look at our team working on the new feature. We can't wait to show you what we've been building.",
-    platforms: ["instagram"],
-    status: "scheduled",
-    date: new Date(now.getFullYear(), now.getMonth(), 12, 11, 0),
-  },
-  {
-    id: "4",
-    content: "Join us for a live webinar on social media strategy for 2026. Register now at the link in bio!",
-    platforms: ["facebook", "linkedin"],
-    status: "draft",
-    date: new Date(now.getFullYear(), now.getMonth(), 15, 16, 0),
-  },
-  {
-    id: "5",
-    content: "Customer spotlight: How businesses are growing 300% using our platform for their social media management.",
-    platforms: ["twitter", "facebook", "linkedin"],
-    status: "scheduled",
-    date: new Date(now.getFullYear(), now.getMonth(), 15, 10, 0),
-  },
-  {
-    id: "6",
-    content: "Weekend vibes! What are your plans? Share with us below and let us know how you spend your free time.",
-    platforms: ["instagram", "facebook"],
-    status: "failed",
-    date: new Date(now.getFullYear(), now.getMonth(), 7, 18, 0),
-  },
-  {
-    id: "7",
-    content: "New blog post: The complete guide to content scheduling in 2026. Link in comments!",
-    platforms: ["linkedin", "twitter"],
-    status: "scheduled",
-    date: new Date(now.getFullYear(), now.getMonth(), 22, 8, 0),
-  },
-  {
-    id: "8",
-    content: "Flash sale! 50% off all plans for the next 48 hours. Don't miss out on this incredible deal.",
-    platforms: ["facebook", "instagram", "twitter"],
-    status: "draft",
-    date: new Date(now.getFullYear(), now.getMonth(), 25, 12, 0),
-  },
-  {
-    id: "9",
-    content: "Introducing our new team member! Welcome aboard and looking forward to amazing things.",
-    platforms: ["linkedin"],
-    status: "published",
-    date: new Date(now.getFullYear(), now.getMonth(), 1, 10, 0),
-    engagement: { likes: 156, comments: 23, shares: 8 },
-  },
-  {
-    id: "10",
-    content: "Monthly recap: Here are our top performing posts and key insights from this month.",
-    platforms: ["facebook", "linkedin"],
-    status: "draft",
-    date: new Date(now.getFullYear(), now.getMonth(), 28, 9, 0),
-  },
-];
-
-const ITEMS_PER_PAGE = 5;
+const ITEMS_PER_PAGE = 10;
 
 export default function PostsPage() {
   const t = useTranslations();
+  const locale = useLocale();
   const [activeTab, setActiveTab] = useState<PostStatus>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [posts, setPosts] = useState<ApiPost[]>([]);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [counts, setCounts] = useState<Record<string, number>>({});
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const filteredPosts = useMemo(() => {
-    let posts = MOCK_POSTS;
-
-    if (activeTab !== "all") {
-      posts = posts.filter((post) => post.status === activeTab);
+  async function load(status: PostStatus, page: number) {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        page: String(page),
+        limit: String(ITEMS_PER_PAGE),
+      });
+      if (status !== "all") params.set("status", status);
+      const r = await fetch(`/api/posts?${params.toString()}`, {
+        cache: "no-store",
+      });
+      if (!r.ok) throw new Error("Failed to load posts");
+      const d = await r.json();
+      setPosts(d.posts || []);
+      setTotal(d.pagination?.total || 0);
+      setTotalPages(d.pagination?.totalPages || 1);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to load");
+    } finally {
+      setLoading(false);
     }
+  }
 
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      posts = posts.filter((post) =>
-        post.content.toLowerCase().includes(query)
-      );
-    }
+  async function loadCounts() {
+    const statuses: Exclude<PostStatus, "all">[] = [
+      "draft",
+      "scheduled",
+      "publishing",
+      "published",
+      "failed",
+    ];
+    const results = await Promise.all(
+      statuses.map(async (s) => {
+        try {
+          const r = await fetch(`/api/posts?status=${s}&limit=1&page=1`, {
+            cache: "no-store",
+          });
+          const d = await r.json();
+          return [s, d.pagination?.total ?? 0] as const;
+        } catch {
+          return [s, 0] as const;
+        }
+      })
+    );
+    const totalAll = results.reduce((sum, [, n]) => sum + n, 0);
+    const counts: Record<string, number> = { all: totalAll };
+    for (const [s, n] of results) counts[s] = n;
+    setCounts(counts);
+  }
 
-    return posts.sort((a, b) => b.date.getTime() - a.date.getTime());
-  }, [activeTab, searchQuery]);
+  useEffect(() => {
+    load(activeTab, currentPage);
+  }, [activeTab, currentPage]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredPosts.length / ITEMS_PER_PAGE));
-  const paginatedPosts = filteredPosts.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
-  );
+  useEffect(() => {
+    loadCounts();
+  }, []);
 
   const handleTabChange = useCallback((value: string | number | null) => {
     setActiveTab((value as PostStatus) || "all");
     setCurrentPage(1);
   }, []);
 
-  const statusCounts = useMemo(() => {
-    return {
-      all: MOCK_POSTS.length,
-      draft: MOCK_POSTS.filter((p) => p.status === "draft").length,
-      scheduled: MOCK_POSTS.filter((p) => p.status === "scheduled").length,
-      published: MOCK_POSTS.filter((p) => p.status === "published").length,
-      failed: MOCK_POSTS.filter((p) => p.status === "failed").length,
-    };
-  }, []);
+  const handleDelete = async (id: string) => {
+    if (!confirm("Delete this post?")) return;
+    setDeletingId(id);
+    try {
+      const r = await fetch(`/api/posts/${id}`, { method: "DELETE" });
+      if (!r.ok) throw new Error("Failed");
+      setPosts((prev) => prev.filter((p) => p.id !== id));
+      toast.success("Deleted");
+      loadCounts();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const filteredPosts = searchQuery.trim()
+    ? posts.filter((p) =>
+        p.content.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : posts;
 
   return (
     <div className="space-y-6">
@@ -207,29 +193,29 @@ export default function PostsPage() {
             Manage all your social media posts
           </p>
         </div>
-        <Button>
+        <Button render={<Link href={`/${locale}/compose`} />}>
           <FileText className="size-4" />
           New Post
         </Button>
       </div>
 
-      <Tabs defaultValue="all" onValueChange={handleTabChange}>
+      <Tabs value={activeTab} onValueChange={handleTabChange}>
         <div className="flex flex-col sm:flex-row sm:items-center gap-4">
           <TabsList>
             <TabsTrigger value="all">
-              {t("posts.all")} ({statusCounts.all})
+              {t("posts.all")} ({counts.all ?? 0})
             </TabsTrigger>
             <TabsTrigger value="draft">
-              {t("posts.draft")} ({statusCounts.draft})
+              {t("posts.draft")} ({counts.draft ?? 0})
             </TabsTrigger>
             <TabsTrigger value="scheduled">
-              {t("posts.scheduled")} ({statusCounts.scheduled})
+              {t("posts.scheduled")} ({counts.scheduled ?? 0})
             </TabsTrigger>
             <TabsTrigger value="published">
-              {t("posts.published")} ({statusCounts.published})
+              {t("posts.published")} ({counts.published ?? 0})
             </TabsTrigger>
             <TabsTrigger value="failed">
-              {t("posts.failed")} ({statusCounts.failed})
+              {t("posts.failed")} ({counts.failed ?? 0})
             </TabsTrigger>
           </TabsList>
 
@@ -238,124 +224,150 @@ export default function PostsPage() {
             <Input
               placeholder={t("common.search") + "..."}
               value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setCurrentPage(1);
-              }}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="ps-8 w-full sm:w-[250px]"
             />
           </div>
         </div>
-
-        {/* Post list for each tab - we render the same list for all since filtering is done in useMemo */}
-        {(["all", "draft", "scheduled", "published", "failed"] as PostStatus[]).map(
-          (tab) => (
-            <TabsContent key={tab} value={tab}>
-              <Card>
-                <CardContent className="p-0">
-                  {/* Table header */}
-                  <div className="hidden sm:grid grid-cols-[1fr_120px_100px_140px_100px] gap-4 items-center px-4 py-3 border-b bg-muted/30 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    <span>Content</span>
-                    <span>Platforms</span>
-                    <span>Status</span>
-                    <span>Date</span>
-                    <span className="text-end">Actions</span>
-                  </div>
-
-                  {paginatedPosts.length === 0 ? (
-                    <div className="text-center py-12 text-muted-foreground">
-                      <FileText className="size-10 mx-auto mb-3 opacity-30" />
-                      <p className="text-sm">No posts found</p>
-                    </div>
-                  ) : (
-                    <div className="divide-y">
-                      {paginatedPosts.map((post) => (
-                        <div
-                          key={post.id}
-                          className="grid grid-cols-1 sm:grid-cols-[1fr_120px_100px_140px_100px] gap-2 sm:gap-4 items-center px-4 py-3 hover:bg-muted/20 transition-colors"
-                        >
-                          {/* Content */}
-                          <div className="min-w-0">
-                            <p className="text-sm truncate">{post.content}</p>
-                            {post.engagement && (
-                              <p className="text-xs text-muted-foreground mt-0.5">
-                                {post.engagement.likes} likes -{" "}
-                                {post.engagement.comments} comments -{" "}
-                                {post.engagement.shares} shares
-                              </p>
-                            )}
-                          </div>
-
-                          {/* Platforms */}
-                          <div className="flex items-center gap-1.5">
-                            {post.platforms.map((platform) => {
-                              const Icon = PLATFORM_ICONS[platform];
-                              return (
-                                <Icon
-                                  key={platform}
-                                  className={cn(
-                                    "size-4",
-                                    PLATFORM_COLORS[platform]
-                                  )}
-                                />
-                              );
-                            })}
-                          </div>
-
-                          {/* Status */}
-                          <div>
-                            <span
-                              className={cn(
-                                "inline-flex items-center text-xs px-2 py-0.5 rounded-full font-medium",
-                                STATUS_STYLES[post.status].color
-                              )}
-                            >
-                              {STATUS_STYLES[post.status].label}
-                            </span>
-                          </div>
-
-                          {/* Date */}
-                          <div className="text-xs text-muted-foreground">
-                            {format(post.date, "MMM d, yyyy")}
-                            <br />
-                            {format(post.date, "h:mm a")}
-                          </div>
-
-                          {/* Actions */}
-                          <div className="flex items-center justify-end gap-1">
-                            <Button variant="ghost" size="icon-xs" title={t("common.edit")}>
-                              <Edit3 className="size-3.5" />
-                            </Button>
-                            <Button variant="ghost" size="icon-xs" title="Duplicate">
-                              <Copy className="size-3.5" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon-xs"
-                              title={t("common.delete")}
-                              className="text-destructive hover:text-destructive"
-                            >
-                              <Trash2 className="size-3.5" />
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-          )
-        )}
       </Tabs>
 
-      {/* Pagination */}
+      <Card>
+        <CardContent className="p-0">
+          <div className="hidden sm:grid grid-cols-[1fr_100px_130px_100px_140px_80px] gap-4 items-center px-4 py-3 border-b bg-muted/30 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            <span>Content</span>
+            <span>Source</span>
+            <span>Platforms</span>
+            <span>Status</span>
+            <span>Date</span>
+            <span className="text-end">Actions</span>
+          </div>
+
+          {loading ? (
+            <div className="text-center py-12">
+              <Loader2 className="size-6 mx-auto animate-spin text-muted-foreground" />
+            </div>
+          ) : filteredPosts.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <FileText className="size-10 mx-auto mb-3 opacity-30" />
+              <p className="text-sm">No posts found</p>
+            </div>
+          ) : (
+            <div className="divide-y">
+              {filteredPosts.map((post) => {
+                const platforms = Array.from(
+                  new Set(
+                    post.postAccounts.map((pa) => pa.socialAccount.platform)
+                  )
+                ) as Platform[];
+                const status = STATUS_STYLES[post.status] ?? STATUS_STYLES.draft;
+                const displayDate =
+                  post.publishedAt ||
+                  post.scheduledAt ||
+                  post.createdAt;
+                const isAI = !!post.sourceVariant;
+                return (
+                  <div
+                    key={post.id}
+                    className="grid grid-cols-1 sm:grid-cols-[1fr_100px_130px_100px_140px_80px] gap-2 sm:gap-4 items-center px-4 py-3 hover:bg-muted/20 transition-colors"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm line-clamp-2">{post.content}</p>
+                      {post.errorMsg && (
+                        <p className="text-xs text-destructive mt-0.5 truncate">
+                          {post.errorMsg}
+                        </p>
+                      )}
+                    </div>
+
+                    <div>
+                      {isAI ? (
+                        <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
+                          <Sparkles className="size-3" />
+                          AI
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center text-xs px-2 py-0.5 rounded-full font-medium bg-muted text-muted-foreground">
+                          Manual
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      {platforms.length === 0 ? (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      ) : (
+                        platforms.map((platform) => {
+                          const Icon = PLATFORM_ICONS[platform];
+                          if (!Icon) return null;
+                          return (
+                            <Icon
+                              key={platform}
+                              className={cn(
+                                "size-4",
+                                PLATFORM_COLORS[platform]
+                              )}
+                            />
+                          );
+                        })
+                      )}
+                    </div>
+
+                    <div>
+                      <span
+                        className={cn(
+                          "inline-flex items-center text-xs px-2 py-0.5 rounded-full font-medium",
+                          status.color
+                        )}
+                      >
+                        {status.label}
+                      </span>
+                    </div>
+
+                    <div className="text-xs text-muted-foreground">
+                      {format(new Date(displayDate), "MMM d, yyyy")}
+                      <br />
+                      {format(new Date(displayDate), "HH:mm")}
+                    </div>
+
+                    <div className="flex items-center justify-end gap-1">
+                      {post.status === "draft" && isAI && (
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          title="Open in queue"
+                          render={<Link href={`/${locale}/voice/queue`} />}
+                        >
+                          <ExternalLink className="size-3.5" />
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        title={t("common.delete")}
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => handleDelete(post.id)}
+                        disabled={deletingId === post.id}
+                      >
+                        {deletingId === post.id ? (
+                          <Loader2 className="size-3.5 animate-spin" />
+                        ) : (
+                          <Trash2 className="size-3.5" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
             Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} to{" "}
-            {Math.min(currentPage * ITEMS_PER_PAGE, filteredPosts.length)} of{" "}
-            {filteredPosts.length} posts
+            {Math.min(currentPage * ITEMS_PER_PAGE, total)} of {total} posts
           </p>
           <div className="flex items-center gap-2">
             <Button
@@ -379,7 +391,9 @@ export default function PostsPage() {
             <Button
               variant="outline"
               size="icon-sm"
-              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              onClick={() =>
+                setCurrentPage((p) => Math.min(totalPages, p + 1))
+              }
               disabled={currentPage === totalPages}
             >
               <ChevronRight className="size-4" />

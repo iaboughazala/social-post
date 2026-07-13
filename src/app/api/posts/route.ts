@@ -47,6 +47,7 @@ export async function GET(request: NextRequest) {
               },
             },
           },
+          sourceVariant: { select: { id: true } },
         },
       }),
       db.post.count({ where }),
