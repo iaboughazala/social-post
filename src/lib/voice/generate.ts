@@ -40,9 +40,12 @@ export async function runClaude(opts: RunOptions): Promise<string> {
       maxTurns: 1,
       allowedTools: [],
       systemPrompt: opts.systemPrompt,
+      stderr: (line: string) => {
+        // Forward Claude Code stderr to server logs so failures aren't silent
+        if (line.trim()) console.error(`[claude-sdk] ${line.trim()}`);
+      },
       env: (() => {
         const e = { ...process.env } as NodeJS.ProcessEnv;
-        // Drop API-key auth so the SDK uses the Max subscription token instead
         delete e.ANTHROPIC_API_KEY;
         delete e.ANTHROPIC_AUTH_TOKEN;
         e.CLAUDE_AGENT_SDK_CLIENT_APP = "social-post-voice/0.1.0";

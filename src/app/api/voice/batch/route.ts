@@ -163,10 +163,11 @@ export async function POST(request: NextRequest) {
 
         created.push({ postId: post.id, topicId: topic?.id ?? null, prompt: item.prompt });
       } catch (err) {
-        failures.push({
-          prompt: item.prompt,
-          error: err instanceof Error ? err.message : "unknown",
-        });
+        const message = err instanceof Error ? err.message : "unknown";
+        console.error(
+          `[voice/batch] item ${idx} failed (topic=${topic?.slug ?? "none"}, prompt="${item.prompt.slice(0, 80)}"): ${message}`
+        );
+        failures.push({ prompt: item.prompt, error: message });
       }
     }
   }

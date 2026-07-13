@@ -101,6 +101,15 @@ export async function POST(
         })),
       });
     }
+    // Continuous learning: feed approved content back into samples so the
+    // voice keeps evolving toward what the user actually greenlights.
+    await tx.samplePost.create({
+      data: {
+        userId: s.userId,
+        content: post.content,
+        notes: `Approved on ${new Date().toISOString().slice(0, 10)}${post.id ? ` · post ${post.id}` : ""}`,
+      },
+    });
   });
 
   return NextResponse.json({
