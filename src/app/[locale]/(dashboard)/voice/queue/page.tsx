@@ -17,9 +17,16 @@ interface QueueItem {
   topic: { id: string; title: string } | null;
 }
 
+interface QueueStats {
+  queue: number;
+  scheduled: number;
+  published: number;
+}
+
 export default function QueuePage() {
   const t = useTranslations("voice.queue");
   const [items, setItems] = useState<QueueItem[]>([]);
+  const [stats, setStats] = useState<QueueStats>({ queue: 0, scheduled: 0, published: 0 });
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
@@ -31,6 +38,7 @@ export default function QueuePage() {
       if (!r.ok) throw new Error("Failed");
       const d = await r.json();
       setItems(d.posts || []);
+      if (d.stats) setStats(d.stats);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed");
     } finally {
@@ -102,6 +110,37 @@ export default function QueuePage() {
       <div>
         <h2 className="text-lg font-semibold">{t("title")}</h2>
         <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
+      </div>
+
+      <div className="grid grid-cols-3 gap-3">
+        <Card>
+          <CardContent className="py-3 text-center">
+            <div className="text-2xl font-bold">{stats.queue}</div>
+            <div className="text-xs text-muted-foreground mt-0.5">
+              {t("stats.queue")}
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="py-3 text-center">
+            <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+              {stats.scheduled}
+            </div>
+            <div className="text-xs text-muted-foreground mt-0.5">
+              {t("stats.scheduled")}
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="py-3 text-center">
+            <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+              {stats.published}
+            </div>
+            <div className="text-xs text-muted-foreground mt-0.5">
+              {t("stats.published")}
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {loading ? (

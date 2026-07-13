@@ -183,6 +183,11 @@
     "queue": {
       "title": "Review Queue",
       "subtitle": "AI-generated drafts. Approve to schedule, edit, or delete.",
+      "stats": {
+        "queue": "In queue",
+        "scheduled": "Scheduled",
+        "published": "Published"
+      },
       "empty": "Queue is empty. Generate a batch to fill it.",
       "approve": "Approve",
       "edit": "Edit",
