@@ -9,6 +9,9 @@ const TABS = [
   { key: "topics", href: "/voice/topics" },
   { key: "samples", href: "/voice/samples" },
   { key: "style", href: "/voice/style" },
+  { key: "batch", href: "/voice/batch" },
+  { key: "queue", href: "/voice/queue" },
+  { key: "schedule", href: "/voice/schedule" },
 ] as const;
 
 export default function VoiceLayout({ children }: { children: React.ReactNode }) {

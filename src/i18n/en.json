@@ -12,6 +12,9 @@
     "voiceTopics": "Topics",
     "voiceSamples": "Samples",
     "voiceStyle": "Style",
+    "voiceBatch": "Batch",
+    "voiceQueue": "Queue",
+    "voiceSchedule": "Schedule",
     "settings": "Settings",
     "billing": "Billing"
   },
@@ -107,7 +110,10 @@
     "tabs": {
       "topics": "Topics",
       "samples": "Samples",
-      "style": "Style Profile"
+      "style": "Style Profile",
+      "batch": "Batch Generate",
+      "queue": "Review Queue",
+      "schedule": "Schedule"
     },
     "topics": {
       "title": "Content Topics",
@@ -164,6 +170,45 @@
       "variantsTitle": "Variants",
       "useThis": "Use this",
       "regenerate": "Regenerate"
+    },
+    "batch": {
+      "title": "Batch Generate",
+      "subtitle": "Generate many posts at once, then review them in the queue.",
+      "countLabel": "Posts per topic",
+      "topicsLabel": "Topics (empty = all active)",
+      "run": "Generate batch",
+      "running": "Generating…",
+      "result": "Created {created} of {requested} — {failed} failed"
+    },
+    "queue": {
+      "title": "Review Queue",
+      "subtitle": "AI-generated drafts. Approve to schedule, edit, or delete.",
+      "empty": "Queue is empty. Generate a batch to fill it.",
+      "approve": "Approve",
+      "edit": "Edit",
+      "delete": "Delete",
+      "editing": "Editing",
+      "saveEdit": "Save",
+      "cancelEdit": "Cancel",
+      "topic": "Topic",
+      "noTopic": "No topic",
+      "approved": "Scheduled for {when}"
+    },
+    "schedule": {
+      "title": "Publishing Schedule",
+      "subtitle": "Approved posts fill these slots automatically, oldest first.",
+      "activeLabel": "Schedule active",
+      "daysLabel": "Days",
+      "timesLabel": "Times",
+      "addTime": "Add time",
+      "platformsLabel": "Platforms",
+      "timezoneLabel": "Timezone",
+      "save": "Save schedule",
+      "saved": "Schedule saved",
+      "day": {
+        "sun": "Sun", "mon": "Mon", "tue": "Tue", "wed": "Wed",
+        "thu": "Thu", "fri": "Fri", "sat": "Sat"
+      }
     }
   }
 }

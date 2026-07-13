@@ -78,12 +78,13 @@ model Team {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  members        TeamMember[]
-  socialAccounts SocialAccount[]
-  posts          Post[]
-  subscription   Subscription?
-  contentTopics  ContentTopic[]
-  generations    Generation[]
+  members            TeamMember[]
+  socialAccounts     SocialAccount[]
+  posts              Post[]
+  subscription       Subscription?
+  contentTopics      ContentTopic[]
+  generations        Generation[]
+  publishingSchedule PublishingSchedule?
 
   @@map("teams")
 }
@@ -311,4 +312,20 @@ model PostVariant {
 
   @@index([generationId, variantIndex])
   @@map("post_variants")
+}
+
+model PublishingSchedule {
+  id        String   @id @default(cuid())
+  teamId    String   @unique
+  days      String   @db.Text // JSON string[] of weekday keys: mon/tue/wed/thu/fri/sat/sun
+  times     String   @db.Text // JSON string[] of HH:mm slots
+  platforms String   @db.Text // JSON string[] of platform keys
+  timezone  String   @default("Asia/Riyadh")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@map("publishing_schedules")
 }
