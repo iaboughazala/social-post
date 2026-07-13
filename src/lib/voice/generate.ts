@@ -39,12 +39,16 @@ export async function runClaude(opts: RunOptions): Promise<string> {
       model: opts.model || getGenerateModel(),
       maxTurns: 1,
       allowedTools: [],
-      permissionMode: "bypassPermissions",
       systemPrompt: opts.systemPrompt,
-      env: {
-        ...process.env,
-        CLAUDE_AGENT_SDK_CLIENT_APP: "social-post-voice/0.1.0",
-      } as NodeJS.ProcessEnv,
+      env: (() => {
+        const e = { ...process.env } as NodeJS.ProcessEnv;
+        // Drop API-key auth so the SDK uses the Max subscription token instead
+        delete e.ANTHROPIC_API_KEY;
+        delete e.ANTHROPIC_AUTH_TOKEN;
+        e.CLAUDE_AGENT_SDK_CLIENT_APP = "social-post-voice/0.1.0";
+        e.IS_SANDBOX = "1";
+        return e;
+      })(),
     },
   });
 
