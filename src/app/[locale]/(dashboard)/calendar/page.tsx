@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
-import { useTranslations } from "next-intl";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslations, useLocale } from "next-intl";
+import Link from "next/link";
+import { toast } from "sonner";
 import {
   format,
   startOfMonth,
@@ -15,7 +17,7 @@ import {
   isSameDay,
   isToday,
 } from "date-fns";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -29,7 +31,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
-  Edit3,
+  Loader2,
+  Sparkles,
+  Trash2,
 } from "lucide-react";
 import {
   FacebookIcon,
@@ -40,15 +44,16 @@ import {
 import { cn } from "@/lib/utils";
 
 type Platform = "facebook" | "instagram" | "twitter" | "linkedin";
-type PostStatus = "scheduled" | "published" | "draft" | "failed";
+type PostStatus = "scheduled" | "publishing" | "published" | "failed";
 
-interface ScheduledPost {
+interface CalendarPost {
   id: string;
   content: string;
+  status: string;
+  scheduledAt: string | null;
+  publishedAt: string | null;
   platforms: Platform[];
-  date: Date;
-  time: string;
-  status: PostStatus;
+  isAI: boolean;
 }
 
 const PLATFORM_COLORS: Record<Platform, string> = {
@@ -65,89 +70,37 @@ const PLATFORM_ICONS: Record<Platform, React.ElementType> = {
   linkedin: LinkedinIcon,
 };
 
-const STATUS_COLORS: Record<PostStatus, string> = {
+const PLATFORM_TEXT: Record<Platform, string> = {
+  facebook: "text-blue-600",
+  instagram: "text-pink-600",
+  twitter: "text-neutral-900 dark:text-neutral-100",
+  linkedin: "text-blue-700",
+};
+
+const STATUS_COLORS: Record<string, string> = {
   scheduled: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-  published: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-  draft: "bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-400",
+  publishing:
+    "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+  published:
+    "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
   failed: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
 };
 
-// Mock data
-const now = new Date();
-const MOCK_POSTS: ScheduledPost[] = [
-  {
-    id: "1",
-    content: "Exciting product launch coming this week! Stay tuned for something amazing.",
-    platforms: ["facebook", "instagram"],
-    date: new Date(now.getFullYear(), now.getMonth(), 5),
-    time: "09:00",
-    status: "published",
-  },
-  {
-    id: "2",
-    content: "5 tips to boost your social media engagement this quarter.",
-    platforms: ["twitter", "linkedin"],
-    date: new Date(now.getFullYear(), now.getMonth(), 8),
-    time: "14:00",
-    status: "scheduled",
-  },
-  {
-    id: "3",
-    content: "Behind the scenes look at our team working on the new feature.",
-    platforms: ["instagram"],
-    date: new Date(now.getFullYear(), now.getMonth(), 12),
-    time: "11:00",
-    status: "scheduled",
-  },
-  {
-    id: "4",
-    content: "Join us for a live webinar on social media strategy for 2026.",
-    platforms: ["facebook", "linkedin"],
-    date: new Date(now.getFullYear(), now.getMonth(), 15),
-    time: "16:00",
-    status: "draft",
-  },
-  {
-    id: "5",
-    content: "Customer spotlight: How @acmecorp grew 300% using our platform.",
-    platforms: ["twitter", "facebook", "linkedin"],
-    date: new Date(now.getFullYear(), now.getMonth(), 15),
-    time: "10:00",
-    status: "scheduled",
-  },
-  {
-    id: "6",
-    content: "Weekend vibes! What are your plans? Share with us below.",
-    platforms: ["instagram", "facebook"],
-    date: new Date(now.getFullYear(), now.getMonth(), 20),
-    time: "18:00",
-    status: "scheduled",
-  },
-  {
-    id: "7",
-    content: "New blog post: The complete guide to content scheduling in 2026.",
-    platforms: ["linkedin", "twitter"],
-    date: new Date(now.getFullYear(), now.getMonth(), 22),
-    time: "08:00",
-    status: "scheduled",
-  },
-  {
-    id: "8",
-    content: "Flash sale! 50% off all plans for the next 48 hours.",
-    platforms: ["facebook", "instagram", "twitter"],
-    date: new Date(now.getFullYear(), now.getMonth(), 25),
-    time: "12:00",
-    status: "draft",
-  },
-];
-
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function effectiveDate(p: CalendarPost): Date {
+  return new Date(p.publishedAt || p.scheduledAt || 0);
+}
 
 export default function CalendarPage() {
   const t = useTranslations();
+  const locale = useLocale();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [posts, setPosts] = useState<CalendarPost[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const calendarDays = useMemo(() => {
     const monthStart = startOfMonth(currentMonth);
@@ -164,13 +117,30 @@ export default function CalendarPage() {
     return days;
   }, [currentMonth]);
 
-  const getPostsForDate = useCallback((date: Date) => {
-    return MOCK_POSTS.filter((post) => isSameDay(post.date, date));
-  }, []);
+  useEffect(() => {
+    const from = startOfWeek(startOfMonth(currentMonth), { weekStartsOn: 0 });
+    const to = addDays(endOfWeek(endOfMonth(currentMonth), { weekStartsOn: 0 }), 1);
+    setLoading(true);
+    fetch(
+      `/api/calendar?from=${from.toISOString()}&to=${to.toISOString()}`,
+      { cache: "no-store" }
+    )
+      .then((r) => r.json())
+      .then((d) => setPosts(d.posts || []))
+      .catch(() => setPosts([]))
+      .finally(() => setLoading(false));
+  }, [currentMonth]);
+
+  const getPostsForDate = useCallback(
+    (date: Date) => posts.filter((p) => isSameDay(effectiveDate(p), date)),
+    [posts]
+  );
 
   const selectedDatePosts = useMemo(() => {
     if (!selectedDate) return [];
-    return getPostsForDate(selectedDate);
+    return getPostsForDate(selectedDate).sort(
+      (a, b) => effectiveDate(a).getTime() - effectiveDate(b).getTime()
+    );
   }, [selectedDate, getPostsForDate]);
 
   const handleDateClick = useCallback((date: Date) => {
@@ -178,29 +148,30 @@ export default function CalendarPage() {
     setSheetOpen(true);
   }, []);
 
-  const handlePrevMonth = useCallback(() => {
-    setCurrentMonth((prev) => subMonths(prev, 1));
-  }, []);
-
-  const handleNextMonth = useCallback(() => {
-    setCurrentMonth((prev) => addMonths(prev, 1));
-  }, []);
-
-  const handleToday = useCallback(() => {
-    setCurrentMonth(new Date());
-  }, []);
+  const handleDelete = async (id: string) => {
+    if (!confirm("Delete this post?")) return;
+    setDeletingId(id);
+    try {
+      const r = await fetch(`/api/posts/${id}`, { method: "DELETE" });
+      if (!r.ok) throw new Error("Failed");
+      setPosts((prev) => prev.filter((p) => p.id !== id));
+      toast.success("Deleted");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            {t("calendar.title")}
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            View and manage your scheduled content
-          </p>
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">
+          {t("calendar.title")}
+        </h1>
+        <p className="text-muted-foreground mt-1">
+          View and manage your scheduled content
+        </p>
       </div>
 
       <Card>
@@ -210,7 +181,7 @@ export default function CalendarPage() {
               <Button
                 variant="outline"
                 size="icon-sm"
-                onClick={handlePrevMonth}
+                onClick={() => setCurrentMonth((p) => subMonths(p, 1))}
               >
                 <ChevronLeft className="size-4" />
               </Button>
@@ -220,18 +191,24 @@ export default function CalendarPage() {
               <Button
                 variant="outline"
                 size="icon-sm"
-                onClick={handleNextMonth}
+                onClick={() => setCurrentMonth((p) => addMonths(p, 1))}
               >
                 <ChevronRight className="size-4" />
               </Button>
+              {loading && (
+                <Loader2 className="size-4 animate-spin text-muted-foreground ms-2" />
+              )}
             </div>
-            <Button variant="outline" size="sm" onClick={handleToday}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentMonth(new Date())}
+            >
               {t("calendar.today")}
             </Button>
           </div>
         </CardHeader>
         <CardContent>
-          {/* Weekday headers */}
           <div className="grid grid-cols-7 gap-px mb-1">
             {WEEKDAYS.map((day) => (
               <div
@@ -243,14 +220,12 @@ export default function CalendarPage() {
             ))}
           </div>
 
-          {/* Calendar grid */}
           <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden">
             {calendarDays.map((day, index) => {
               const postsOnDay = getPostsForDate(day);
               const isCurrentMonth = isSameMonth(day, currentMonth);
               const isTodayDate = isToday(day);
-              const isSelected =
-                selectedDate && isSameDay(day, selectedDate);
+              const isSelected = selectedDate && isSameDay(day, selectedDate);
 
               return (
                 <button
@@ -265,8 +240,7 @@ export default function CalendarPage() {
                   <span
                     className={cn(
                       "inline-flex size-6 items-center justify-center rounded-full text-xs font-medium",
-                      isTodayDate &&
-                        "bg-primary text-primary-foreground",
+                      isTodayDate && "bg-primary text-primary-foreground",
                       !isTodayDate && "text-foreground"
                     )}
                   >
@@ -305,7 +279,6 @@ export default function CalendarPage() {
             })}
           </div>
 
-          {/* Legend */}
           <div className="flex flex-wrap items-center gap-4 mt-4 pt-4 border-t">
             {(
               [
@@ -329,7 +302,6 @@ export default function CalendarPage() {
         </CardContent>
       </Card>
 
-      {/* Side panel for selected date */}
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetContent side="right">
           <SheetHeader>
@@ -339,7 +311,7 @@ export default function CalendarPage() {
             <SheetDescription>
               {selectedDatePosts.length === 0
                 ? "No posts scheduled for this date"
-                : `${selectedDatePosts.length} post${selectedDatePosts.length > 1 ? "s" : ""} scheduled`}
+                : `${selectedDatePosts.length} post${selectedDatePosts.length > 1 ? "s" : ""} on this day`}
             </SheetDescription>
           </SheetHeader>
 
@@ -351,34 +323,53 @@ export default function CalendarPage() {
                     <div className="flex items-center gap-1.5">
                       {post.platforms.map((platform) => {
                         const Icon = PLATFORM_ICONS[platform];
+                        if (!Icon) return null;
                         return (
                           <Icon
                             key={platform}
-                            className={cn("size-4")}
+                            className={cn("size-4", PLATFORM_TEXT[platform])}
                           />
                         );
                       })}
+                      {post.isAI && (
+                        <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 text-[10px] px-1.5 py-0">
+                          <Sparkles className="size-2.5 me-0.5" />
+                          AI
+                        </Badge>
+                      )}
                     </div>
                     <span
                       className={cn(
                         "text-xs px-2 py-0.5 rounded-full font-medium",
-                        STATUS_COLORS[post.status]
+                        STATUS_COLORS[post.status] ?? STATUS_COLORS.scheduled
                       )}
                     >
                       {post.status}
                     </span>
                   </div>
 
-                  <p className="text-sm line-clamp-3">{post.content}</p>
+                  <p className="text-sm line-clamp-4 whitespace-pre-wrap">
+                    {post.content}
+                  </p>
 
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
                     <div className="flex items-center gap-1">
                       <Clock className="size-3" />
-                      <span>{post.time}</span>
+                      <span>{format(effectiveDate(post), "HH:mm")}</span>
                     </div>
-                    <Button variant="ghost" size="xs">
-                      <Edit3 className="size-3" />
-                      Edit
+                    <Button
+                      variant="ghost"
+                      size="xs"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => handleDelete(post.id)}
+                      disabled={deletingId === post.id}
+                    >
+                      {deletingId === post.id ? (
+                        <Loader2 className="size-3 animate-spin" />
+                      ) : (
+                        <Trash2 className="size-3" />
+                      )}
+                      Delete
                     </Button>
                   </div>
                 </CardContent>
@@ -389,7 +380,12 @@ export default function CalendarPage() {
               <div className="text-center py-12 text-muted-foreground">
                 <Clock className="size-10 mx-auto mb-3 opacity-30" />
                 <p className="text-sm">No posts for this date</p>
-                <Button variant="outline" size="sm" className="mt-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-3"
+                  render={<Link href={`/${locale}/compose`} />}
+                >
                   Create a post
                 </Button>
               </div>
