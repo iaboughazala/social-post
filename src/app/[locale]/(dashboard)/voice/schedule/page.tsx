@@ -14,7 +14,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Plus, Save, X } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { format } from "date-fns";
+import { Calendar, Loader2, Plus, Save, X } from "lucide-react";
 
 const DAYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
 const PLATFORMS = ["linkedin", "twitter", "facebook", "instagram"] as const;
@@ -34,6 +36,14 @@ interface Schedule {
   platforms: string;
   timezone: string;
   isActive: boolean;
+}
+
+interface UpcomingPost {
+  id: string;
+  content: string;
+  scheduledAt: string;
+  platforms: string[];
+  topic: string | null;
 }
 
 function parseArr(raw: string | null | undefined): string[] {
@@ -56,6 +66,16 @@ export default function SchedulePage() {
   const [platforms, setPlatforms] = useState<Set<string>>(new Set());
   const [timezone, setTimezone] = useState("Asia/Riyadh");
   const [isActive, setIsActive] = useState(true);
+  const [upcoming, setUpcoming] = useState<UpcomingPost[]>([]);
+
+  async function loadUpcoming() {
+    try {
+      const r = await fetch("/api/voice/upcoming", { cache: "no-store" });
+      if (!r.ok) return;
+      const d = await r.json();
+      setUpcoming(d.posts || []);
+    } catch {}
+  }
 
   useEffect(() => {
     fetch("/api/voice/schedule", { cache: "no-store" })
@@ -72,6 +92,7 @@ export default function SchedulePage() {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
+    loadUpcoming();
   }, []);
 
   const toggle = (set: Set<string>, key: string, setter: (v: Set<string>) => void) => {
@@ -109,7 +130,10 @@ export default function SchedulePage() {
         }),
       });
       if (!r.ok) throw new Error("Failed");
-      toast.success(t("saved"));
+      const d = await r.json();
+      const reslotted = d.reslot?.reslotted ?? 0;
+      toast.success(t("saved", { reslotted }));
+      await loadUpcoming();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed");
     } finally {
@@ -255,6 +279,63 @@ export default function SchedulePage() {
           </div>
         </CardContent>
       </Card>
+
+      <div className="space-y-3 pt-2">
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-semibold flex items-center gap-2">
+            <Calendar className="size-4" />
+            {t("upcoming.title")}
+          </h3>
+          {upcoming.length > 0 && (
+            <span className="text-xs text-muted-foreground">
+              {t("upcoming.count", { count: upcoming.length })}
+            </span>
+          )}
+        </div>
+
+        {upcoming.length === 0 ? (
+          <Card>
+            <CardContent className="py-8 text-center text-sm text-muted-foreground">
+              {t("upcoming.empty")}
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-2">
+            {upcoming.map((post) => (
+              <Card key={post.id}>
+                <CardContent className="py-3 flex items-start gap-3">
+                  <div className="min-w-[130px] shrink-0 text-sm font-medium">
+                    <div>{format(new Date(post.scheduledAt), "MMM d, yyyy")}</div>
+                    <div className="text-muted-foreground">
+                      {format(new Date(post.scheduledAt), "EEE · HH:mm")}
+                    </div>
+                  </div>
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <div className="flex flex-wrap gap-1.5">
+                      {post.topic && (
+                        <Badge className="bg-muted text-muted-foreground">
+                          {post.topic}
+                        </Badge>
+                      )}
+                      {post.platforms.map((p) => (
+                        <Badge
+                          key={p}
+                          className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 capitalize"
+                        >
+                          {p}
+                        </Badge>
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground line-clamp-2">
+                      {post.content.slice(0, 200)}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

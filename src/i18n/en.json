@@ -204,10 +204,15 @@
       "platformsLabel": "Platforms",
       "timezoneLabel": "Timezone",
       "save": "Save schedule",
-      "saved": "Schedule saved",
+      "saved": "Schedule saved · {reslotted} posts re-slotted",
       "day": {
         "sun": "Sun", "mon": "Mon", "tue": "Tue", "wed": "Wed",
         "thu": "Thu", "fri": "Fri", "sat": "Sat"
+      },
+      "upcoming": {
+        "title": "Upcoming scheduled posts",
+        "empty": "No posts scheduled yet. Approve some drafts in the Queue.",
+        "count": "{count} scheduled"
       }
     }
   }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getVoiceSession } from "@/lib/voice/session";
 import { WEEKDAY_KEYS } from "@/lib/voice/schedule";
+import { reslotTeam } from "@/lib/voice/reslot";
 
 export const dynamic = "force-dynamic";
 
@@ -53,5 +54,7 @@ export async function PUT(req: NextRequest) {
       isActive,
     },
   });
-  return NextResponse.json({ schedule });
+
+  const reslot = await reslotTeam(s.teamId);
+  return NextResponse.json({ schedule, reslot });
 }
