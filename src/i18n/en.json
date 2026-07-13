@@ -8,6 +8,10 @@
     "accounts": "Accounts",
     "team": "Team",
     "approvals": "Approvals",
+    "voice": "Voice",
+    "voiceTopics": "Topics",
+    "voiceSamples": "Samples",
+    "voiceStyle": "Style",
     "settings": "Settings",
     "billing": "Billing"
   },
@@ -96,5 +100,70 @@
     "free": "Free",
     "pro": "Pro",
     "business": "Business"
+  },
+  "voice": {
+    "title": "Voice",
+    "subtitle": "Your personal writing style, topics, and sample posts — used by AI to write in your voice.",
+    "tabs": {
+      "topics": "Topics",
+      "samples": "Samples",
+      "style": "Style Profile"
+    },
+    "topics": {
+      "title": "Content Topics",
+      "subtitle": "Pillars your content revolves around. Shared with your team.",
+      "add": "Add topic",
+      "empty": "No topics yet. Add your first content pillar.",
+      "form": {
+        "titleLabel": "Title",
+        "slugLabel": "Slug",
+        "descriptionLabel": "Description",
+        "hashtagsLabel": "Hashtags (comma-separated)",
+        "frameworksLabel": "Frameworks (comma-separated)",
+        "anglesLabel": "Angles (one per line)",
+        "hooksLabel": "Hooks (one per line)"
+      },
+      "active": "Active",
+      "inactive": "Inactive"
+    },
+    "samples": {
+      "title": "Sample Posts",
+      "subtitle": "Paste your best posts. The AI learns your style from them.",
+      "add": "Add sample",
+      "paste": "Paste a post you wrote…",
+      "notes": "Notes (optional)",
+      "empty": "No samples yet. Paste at least one post so the AI can learn your voice.",
+      "count": "{count} sample(s)"
+    },
+    "style": {
+      "title": "Style Profile",
+      "subtitle": "Extracted from your samples. Regenerate after adding more samples.",
+      "analyze": "Analyze my style",
+      "analyzing": "Analyzing…",
+      "notYet": "No style profile yet. Add samples and click Analyze.",
+      "tone": "Tone",
+      "pillars": "Voice pillars",
+      "vocabulary": "Vocabulary notes",
+      "structure": "Structure notes",
+      "do": "Do",
+      "dont": "Don't",
+      "raw": "Full analysis",
+      "sourceSamples": "Based on {count} samples",
+      "model": "Model",
+      "lastAnalyzed": "Last analyzed"
+    },
+    "compose": {
+      "topicLabel": "Topic",
+      "noTopic": "No topic",
+      "ideaLabel": "Idea / prompt",
+      "ideaPlaceholder": "What do you want to write about?",
+      "contextLabel": "Extra context (optional)",
+      "variantsLabel": "Number of variants",
+      "generate": "Generate",
+      "generating": "Generating…",
+      "variantsTitle": "Variants",
+      "useThis": "Use this",
+      "regenerate": "Regenerate"
+    }
   }
 }

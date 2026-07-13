@@ -12,6 +12,7 @@ import {
   Link2,
   Users,
   CheckSquare,
+  Sparkles,
   Settings,
   CreditCard,
   LogOut,
@@ -48,6 +49,7 @@ const navItems = [
   { key: "posts", href: "/posts", icon: FileText },
   { key: "analytics", href: "/analytics", icon: BarChart3 },
   { key: "accounts", href: "/accounts", icon: Link2 },
+  { key: "voice", href: "/voice/topics", icon: Sparkles, match: "/voice" },
   { key: "team", href: "/team", icon: Users },
   { key: "approvals", href: "/approvals", icon: CheckSquare },
 ] as const;
@@ -63,8 +65,9 @@ export function AppSidebar() {
   const locale = useLocale();
   const { data: session } = useSession();
 
-  const isActive = (href: string) => {
-    const fullPath = `/${locale}${href}`;
+  const isActive = (href: string, match?: string) => {
+    const target = match ?? href;
+    const fullPath = `/${locale}${target}`;
     return pathname === fullPath || pathname.startsWith(`${fullPath}/`);
   };
 
@@ -109,7 +112,7 @@ export function AppSidebar() {
                 <SidebarMenuItem key={item.key}>
                   <SidebarMenuButton
                     render={<Link href={`/${locale}${item.href}`} />}
-                    isActive={isActive(item.href)}
+                    isActive={isActive(item.href, "match" in item ? item.match : undefined)}
                     tooltip={t(item.key)}
                   >
                     <item.icon />
