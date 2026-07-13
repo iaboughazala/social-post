@@ -1,9 +1,12 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { useTranslations } from "next-intl";
+import { useCallback, useEffect, useState } from "react";
+import { useTranslations, useLocale } from "next-intl";
 import { useForm, Controller } from "react-hook-form";
 import { format } from "date-fns";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   Card,
   CardContent,
@@ -14,20 +17,19 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
-  Upload,
   CalendarIcon,
   Clock,
   Sparkles,
   Send,
   Save,
   Image as ImageIcon,
-  X,
+  Loader2,
+  AlertTriangle,
 } from "lucide-react";
 import {
   FacebookIcon,
@@ -45,6 +47,13 @@ interface ComposeFormData {
   scheduleDate: Date | undefined;
   scheduleTime: string;
   isScheduled: boolean;
+}
+
+interface ConnectedAccount {
+  id: string;
+  platform: Platform;
+  name: string;
+  expiresAt: string | null;
 }
 
 const PLATFORMS: {
@@ -86,15 +95,18 @@ const PLATFORMS: {
 
 export default function ComposePage() {
   const t = useTranslations();
-  const [mediaFiles, setMediaFiles] = useState<string[]>([]);
-  const [isDragging, setIsDragging] = useState(false);
+  const locale = useLocale();
+  const router = useRouter();
+  const [accounts, setAccounts] = useState<ConnectedAccount[]>([]);
+  const [accountsLoading, setAccountsLoading] = useState(true);
+  const [submitting, setSubmitting] = useState<null | "draft" | "publish" | "schedule">(null);
 
   const { control, watch, setValue, handleSubmit } = useForm<ComposeFormData>({
     defaultValues: {
       content: "",
       platforms: [],
       scheduleDate: undefined,
-      scheduleTime: "09:00",
+      scheduleTime: "10:00",
       isScheduled: false,
     },
   });
@@ -103,9 +115,24 @@ export default function ComposePage() {
   const platforms = watch("platforms");
   const isScheduled = watch("isScheduled");
   const scheduleDate = watch("scheduleDate");
+  const scheduleTime = watch("scheduleTime");
+
+  useEffect(() => {
+    fetch("/api/accounts", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => setAccounts(d.accounts || []))
+      .catch(() => setAccounts([]))
+      .finally(() => setAccountsLoading(false));
+  }, []);
+
+  const connectedPlatforms = new Set(accounts.map((a) => a.platform));
 
   const togglePlatform = useCallback(
     (platformId: Platform) => {
+      if (!connectedPlatforms.has(platformId)) {
+        toast.error(`Connect ${platformId} first in Accounts`);
+        return;
+      }
       const current = platforms;
       if (current.includes(platformId)) {
         setValue(
@@ -116,7 +143,7 @@ export default function ComposePage() {
         setValue("platforms", [...current, platformId]);
       }
     },
-    [platforms, setValue]
+    [platforms, setValue, connectedPlatforms]
   );
 
   const handleAIInsert = useCallback(
@@ -126,29 +153,125 @@ export default function ComposePage() {
     [setValue]
   );
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  }, []);
+  async function createPost(payload: {
+    content: string;
+    platforms: Platform[];
+    status: "draft" | "scheduled";
+    scheduledAt?: string;
+  }): Promise<{ id: string } | null> {
+    const r = await fetch("/api/posts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const d = await r.json();
+    if (!r.ok) {
+      throw new Error(d.error || "Failed to save post");
+    }
+    return d;
+  }
 
-  const handleDragLeave = useCallback(() => {
-    setIsDragging(false);
-  }, []);
+  async function handleSaveDraft(data: ComposeFormData) {
+    if (!data.content.trim()) {
+      toast.error("Add some content first");
+      return;
+    }
+    setSubmitting("draft");
+    try {
+      await createPost({
+        content: data.content.trim(),
+        platforms: data.platforms,
+        status: "draft",
+      });
+      toast.success("Draft saved");
+      router.push(`/${locale}/posts`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    } finally {
+      setSubmitting(null);
+    }
+  }
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    // Mock: just add a placeholder
-    setMediaFiles((prev) => [...prev, `media-${prev.length + 1}.jpg`]);
-  }, []);
+  async function handlePublishNow(data: ComposeFormData) {
+    if (!data.content.trim()) {
+      toast.error("Add some content first");
+      return;
+    }
+    if (data.platforms.length === 0) {
+      toast.error("Select at least one platform");
+      return;
+    }
+    setSubmitting("publish");
+    try {
+      const post = await createPost({
+        content: data.content.trim(),
+        platforms: data.platforms,
+        status: "draft", // create as draft first
+      });
+      if (!post?.id) throw new Error("No post id returned");
 
-  const removeMedia = useCallback((index: number) => {
-    setMediaFiles((prev) => prev.filter((_, i) => i !== index));
-  }, []);
+      const r = await fetch(`/api/posts/${post.id}/publish`, { method: "POST" });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "Publish failed");
+
+      const failed = (d.results || []).filter((x: { status: string }) => x.status === "failed");
+      if (failed.length > 0) {
+        toast.error(`Published with ${failed.length} platform failure(s)`);
+      } else {
+        toast.success("Published");
+      }
+      router.push(`/${locale}/posts`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    } finally {
+      setSubmitting(null);
+    }
+  }
+
+  async function handleSchedule(data: ComposeFormData) {
+    if (!data.content.trim()) {
+      toast.error("Add some content first");
+      return;
+    }
+    if (data.platforms.length === 0) {
+      toast.error("Select at least one platform");
+      return;
+    }
+    if (!data.scheduleDate) {
+      toast.error("Pick a date");
+      return;
+    }
+    const [hh, mm] = (data.scheduleTime || "10:00").split(":").map(Number);
+    const dt = new Date(data.scheduleDate);
+    dt.setHours(hh, mm, 0, 0);
+    if (dt.getTime() <= Date.now()) {
+      toast.error("Pick a future time");
+      return;
+    }
+
+    setSubmitting("schedule");
+    try {
+      await createPost({
+        content: data.content.trim(),
+        platforms: data.platforms,
+        status: "scheduled",
+        scheduledAt: dt.toISOString(),
+      });
+      toast.success(`Scheduled for ${format(dt, "MMM d, yyyy 'at' HH:mm")}`);
+      router.push(`/${locale}/posts`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    } finally {
+      setSubmitting(null);
+    }
+  }
 
   const onSubmit = (data: ComposeFormData) => {
-    console.log("Form submitted:", data, mediaFiles);
+    if (isScheduled) handleSchedule(data);
+    else handlePublishNow(data);
   };
+
+  const anyConnected = accounts.length > 0;
 
   return (
     <div className="space-y-6">
@@ -158,6 +281,24 @@ export default function ComposePage() {
           Create and schedule your social media posts
         </p>
       </div>
+
+      {!accountsLoading && !anyConnected && (
+        <Card className="border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800">
+          <CardContent className="pt-4 flex items-start gap-3">
+            <AlertTriangle className="size-5 text-amber-600 mt-0.5" />
+            <div className="flex-1 text-sm">
+              <p className="font-medium">No accounts connected</p>
+              <p className="text-muted-foreground">
+                You can save drafts, but you need at least one connected account to
+                publish or schedule.
+              </p>
+            </div>
+            <Button variant="outline" size="sm" render={<Link href={`/${locale}/accounts`} />}>
+              Connect an account
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       <form onSubmit={handleSubmit(onSubmit)}>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -185,7 +326,7 @@ export default function ComposePage() {
                       <Textarea
                         {...field}
                         placeholder={t("compose.contentPlaceholder")}
-                        className="min-h-[160px] text-base"
+                        className="min-h-[220px] text-base"
                       />
                       <div className="flex justify-end">
                         <span
@@ -202,50 +343,6 @@ export default function ComposePage() {
                     </div>
                   )}
                 />
-
-                {/* Media upload area */}
-                <div>
-                  <Label className="mb-2">{t("compose.mediaUpload")}</Label>
-                  <div
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
-                    className={cn(
-                      "border-2 border-dashed rounded-lg p-6 text-center transition-colors cursor-pointer",
-                      isDragging
-                        ? "border-primary bg-primary/5"
-                        : "border-muted-foreground/25 hover:border-muted-foreground/50"
-                    )}
-                  >
-                    <Upload className="size-8 mx-auto text-muted-foreground mb-2" />
-                    <p className="text-sm text-muted-foreground">
-                      Drag & drop files here, or click to upload
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      PNG, JPG, GIF, MP4 (max 50MB)
-                    </p>
-                  </div>
-                  {mediaFiles.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mt-3">
-                      {mediaFiles.map((file, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center gap-2 rounded-md bg-muted px-3 py-1.5 text-sm"
-                        >
-                          <ImageIcon className="size-4 text-muted-foreground" />
-                          <span>{file}</span>
-                          <button
-                            type="button"
-                            onClick={() => removeMedia(index)}
-                            className="text-muted-foreground hover:text-foreground"
-                          >
-                            <X className="size-3" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
               </CardContent>
             </Card>
 
@@ -254,7 +351,7 @@ export default function ComposePage() {
               <CardHeader>
                 <CardTitle>{t("compose.selectPlatforms")}</CardTitle>
                 <CardDescription>
-                  Choose where to publish your post
+                  Only connected accounts can be selected
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -262,16 +359,19 @@ export default function ComposePage() {
                   {PLATFORMS.map((platform) => {
                     const Icon = platform.icon;
                     const isSelected = platforms.includes(platform.id);
+                    const isConnected = connectedPlatforms.has(platform.id);
                     return (
                       <button
                         key={platform.id}
                         type="button"
                         onClick={() => togglePlatform(platform.id)}
+                        disabled={!isConnected}
                         className={cn(
-                          "flex flex-col items-center gap-2 rounded-lg border-2 p-4 transition-all",
-                          isSelected
+                          "relative flex flex-col items-center gap-2 rounded-lg border-2 p-4 transition-all",
+                          isSelected && isConnected
                             ? platform.bgActive
-                            : "border-transparent bg-muted/50 hover:bg-muted"
+                            : "border-transparent bg-muted/50 hover:bg-muted",
+                          !isConnected && "opacity-40 cursor-not-allowed hover:bg-muted/50"
                         )}
                       >
                         <Icon
@@ -288,6 +388,11 @@ export default function ComposePage() {
                         >
                           {platform.name}
                         </span>
+                        {!isConnected && (
+                          <span className="absolute top-1 right-1 text-[9px] bg-muted-foreground/10 text-muted-foreground px-1.5 rounded">
+                            Not connected
+                          </span>
+                        )}
                       </button>
                     );
                   })}
@@ -363,6 +468,11 @@ export default function ComposePage() {
                         </div>
                       )}
                     />
+                    {scheduleDate && (
+                      <div className="text-xs text-muted-foreground self-center">
+                        → {format(scheduleDate, "MMM d, yyyy")} · {scheduleTime}
+                      </div>
+                    )}
                   </div>
                 )}
               </CardContent>
@@ -375,12 +485,30 @@ export default function ComposePage() {
             <Card>
               <CardContent className="pt-4">
                 <div className="flex flex-col gap-2">
-                  <Button type="submit" className="w-full">
-                    <Send className="size-4" />
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={submitting !== null || !anyConnected}
+                  >
+                    {submitting === "publish" || submitting === "schedule" ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <Send className="size-4" />
+                    )}
                     {isScheduled ? t("compose.schedule") : t("compose.publishNow")}
                   </Button>
-                  <Button type="button" variant="outline" className="w-full">
-                    <Save className="size-4" />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={handleSubmit(handleSaveDraft)}
+                    disabled={submitting !== null}
+                  >
+                    {submitting === "draft" ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <Save className="size-4" />
+                    )}
                     {t("compose.draft")}
                   </Button>
                 </div>
@@ -409,7 +537,7 @@ export default function ComposePage() {
                     <TabsContent key={p} value={p}>
                       <PlatformPreview
                         content={content}
-                        mediaUrls={mediaFiles}
+                        mediaUrls={[]}
                         platform={p}
                       />
                     </TabsContent>
