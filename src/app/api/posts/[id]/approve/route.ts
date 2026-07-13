@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getVoiceSession } from "@/lib/voice/session";
 import { parseSchedule, pickNextOpenSlot } from "@/lib/voice/schedule";
+import { maybeAutoAnalyze } from "@/lib/voice/auto-analyze";
 
 export const dynamic = "force-dynamic";
 
@@ -110,6 +111,12 @@ export async function POST(
         notes: `Approved on ${new Date().toISOString().slice(0, 10)}${post.id ? ` · post ${post.id}` : ""}`,
       },
     });
+  });
+
+  // Fire-and-forget: if this pushed the sample count past the threshold,
+  // re-analyze the style. Runs after the response so the user isn't blocked.
+  setImmediate(() => {
+    maybeAutoAnalyze(s.userId);
   });
 
   return NextResponse.json({
