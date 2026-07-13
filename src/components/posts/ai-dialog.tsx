@@ -1,14 +1,14 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -22,208 +22,202 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Sparkles, Loader2, Copy, Check } from "lucide-react";
+import { Sparkles, Loader2, Check } from "lucide-react";
 
 interface AIDialogProps {
   onInsert: (content: string) => void;
   children: React.ReactNode;
 }
 
-const MOCK_RESPONSES: Record<string, string[]> = {
-  professional: [
-    "We are thrilled to announce our latest innovation that will transform how you manage your social media presence. Our team has worked tirelessly to bring you cutting-edge features designed for modern businesses.\n\nDiscover the future of social media management today.",
-    "Excited to share our quarterly results! Thanks to our incredible team and loyal customers, we've achieved remarkable milestones this period.\n\nHere's to continued growth and innovation. #BusinessGrowth #Innovation",
-  ],
-  casual: [
-    "Hey everyone! We've got something awesome cooking and we can't wait to share it with you all! Stay tuned for the big reveal coming very soon.\n\nDrop a comment if you're curious!",
-    "Just wrapped up an amazing brainstorming session with the team. The energy was unreal! Big things are coming your way. Who's ready?",
-  ],
-  humorous: [
-    "Our social media scheduler is so good, it practically runs itself. We'd tell our team to take the day off, but they're too busy adding more features nobody asked for (but everyone needs).\n\nTry it free - your future self will thank you!",
-    "POV: You finally scheduled all your posts for the week and it's only Monday. That's the power of automation, friends. Now if only we could automate getting out of bed...",
-  ],
-  informative: [
-    "Did you know that businesses posting consistently on social media see 67% more leads than those who don't? Here are 3 tips to boost your social presence:\n\n1. Post at optimal times for your audience\n2. Use a mix of content formats\n3. Engage with your community daily\n\n#SocialMediaTips #MarketingStrategy",
-    "The landscape of social media is evolving rapidly. In 2026, short-form video content continues to dominate, while AI-powered content creation is becoming essential for brands of all sizes.\n\nStay ahead of the curve with smart scheduling and AI tools.",
-  ],
-};
+interface Topic {
+  id: string;
+  title: string;
+  isActive: boolean;
+}
+
+interface Variant {
+  id: string;
+  variantIndex: number;
+  content: string;
+  hook: string | null;
+  hashtags: string[];
+}
+
+const NO_TOPIC = "__none__";
 
 export function AIDialog({ onInsert, children }: AIDialogProps) {
   const t = useTranslations();
+  const tv = useTranslations("voice.compose");
   const [open, setOpen] = useState(false);
-  const [topic, setTopic] = useState("");
-  const [tone, setTone] = useState("professional");
-  const [platform, setPlatform] = useState("general");
-  const [language, setLanguage] = useState("en");
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [generatedContent, setGeneratedContent] = useState("");
-  const [copied, setCopied] = useState(false);
+  const [topics, setTopics] = useState<Topic[]>([]);
+  const [topicId, setTopicId] = useState<string>(NO_TOPIC);
+  const [prompt, setPrompt] = useState("");
+  const [context, setContext] = useState("");
+  const [variantCount, setVariantCount] = useState(3);
+  const [generating, setGenerating] = useState(false);
+  const [variants, setVariants] = useState<Variant[]>([]);
+  const [pickedId, setPickedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    fetch("/api/voice/topics", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => setTopics((d.topics || []).filter((x: Topic) => x.isActive)))
+      .catch(() => setTopics([]));
+  }, [open]);
 
   const handleGenerate = useCallback(async () => {
-    setIsGenerating(true);
-    setGeneratedContent("");
-
-    // Mock AI response with delay
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
-    const responses = MOCK_RESPONSES[tone] || MOCK_RESPONSES.professional;
-    const randomIndex = Math.floor(Math.random() * responses.length);
-    let result = responses[randomIndex];
-
-    if (topic) {
-      result = result.replace(
-        /social media|innovation|features/gi,
-        topic
-      );
+    if (!prompt.trim()) return;
+    setGenerating(true);
+    setVariants([]);
+    setPickedId(null);
+    try {
+      const r = await fetch("/api/ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: prompt.trim(),
+          context: context.trim() || undefined,
+          topicId: topicId === NO_TOPIC ? undefined : topicId,
+          variantCount,
+        }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "Generation failed");
+      setVariants(d.variants || []);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Generation failed");
+    } finally {
+      setGenerating(false);
     }
+  }, [prompt, context, topicId, variantCount]);
 
-    if (language === "ar") {
-      result =
-        "نحن متحمسون للإعلان عن أحدث ابتكاراتنا التي ستغير طريقة إدارتك لوسائل التواصل الاجتماعي. عمل فريقنا بلا كلل لتقديم ميزات متطورة مصممة للأعمال الحديثة.\n\nاكتشف مستقبل إدارة وسائل التواصل الاجتماعي اليوم.";
-    }
-
-    setGeneratedContent(result);
-    setIsGenerating(false);
-  }, [tone, topic, language]);
-
-  const handleInsert = useCallback(() => {
-    onInsert(generatedContent);
-    setOpen(false);
-    setGeneratedContent("");
-    setTopic("");
-  }, [generatedContent, onInsert]);
-
-  const handleCopy = useCallback(async () => {
-    await navigator.clipboard.writeText(generatedContent);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }, [generatedContent]);
+  const handlePick = useCallback(
+    (variant: Variant) => {
+      setPickedId(variant.id);
+      onInsert(variant.content);
+      setOpen(false);
+      // reset for next time
+      setVariants([]);
+      setPrompt("");
+      setContext("");
+      toast.success("Inserted");
+    },
+    [onInsert]
+  );
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={<span />}>{children}</DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="size-5 text-purple-500" />
             {t("compose.aiGenerate")}
           </DialogTitle>
-          <DialogDescription>
-            Generate engaging content for your social media posts using AI.
-          </DialogDescription>
+          <DialogDescription>{t("voice.subtitle")}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="sm:col-span-2 space-y-2">
+              <Label>{tv("topicLabel")}</Label>
+              <Select value={topicId} onValueChange={(v) => v && setTopicId(v)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_TOPIC}>{tv("noTopic")}</SelectItem>
+                  {topics.map((topic) => (
+                    <SelectItem key={topic.id} value={topic.id}>
+                      {topic.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>{tv("variantsLabel")}</Label>
+              <Input
+                type="number"
+                min={1}
+                max={5}
+                value={variantCount}
+                onChange={(e) =>
+                  setVariantCount(Math.min(5, Math.max(1, Number(e.target.value) || 3)))
+                }
+              />
+            </div>
+          </div>
+
           <div className="space-y-2">
-            <Label htmlFor="ai-topic">Topic / Prompt</Label>
-            <Input
-              id="ai-topic"
-              placeholder="e.g., Product launch announcement, Holiday sale..."
-              value={topic}
-              onChange={(e) => setTopic(e.target.value)}
+            <Label>{tv("ideaLabel")}</Label>
+            <Textarea
+              placeholder={tv("ideaPlaceholder")}
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              className="min-h-[100px]"
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-2">
-              <Label>Tone</Label>
-              <Select value={tone} onValueChange={(v) => v && setTone(v)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="professional">Professional</SelectItem>
-                  <SelectItem value="casual">Casual</SelectItem>
-                  <SelectItem value="humorous">Humorous</SelectItem>
-                  <SelectItem value="informative">Informative</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Platform</Label>
-              <Select value={platform} onValueChange={(v) => v && setPlatform(v)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="general">General</SelectItem>
-                  <SelectItem value="facebook">Facebook</SelectItem>
-                  <SelectItem value="instagram">Instagram</SelectItem>
-                  <SelectItem value="twitter">X (Twitter)</SelectItem>
-                  <SelectItem value="linkedin">LinkedIn</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Language</Label>
-              <Select value={language} onValueChange={(v) => v && setLanguage(v)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="en">English</SelectItem>
-                  <SelectItem value="ar">Arabic</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="space-y-2">
+            <Label>{tv("contextLabel")}</Label>
+            <Textarea
+              value={context}
+              onChange={(e) => setContext(e.target.value)}
+              className="min-h-[60px]"
+            />
           </div>
 
           <Button
             onClick={handleGenerate}
-            disabled={isGenerating}
+            disabled={generating || !prompt.trim()}
             className="w-full"
           >
-            {isGenerating ? (
+            {generating ? (
               <>
                 <Loader2 className="size-4 animate-spin" />
-                Generating...
+                {tv("generating")}
               </>
             ) : (
               <>
                 <Sparkles className="size-4" />
-                Generate Content
+                {variants.length > 0 ? tv("regenerate") : tv("generate")}
               </>
             )}
           </Button>
 
-          {generatedContent && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>Generated Content</Label>
-                <Button
-                  variant="ghost"
-                  size="xs"
-                  onClick={handleCopy}
+          {variants.length > 0 && (
+            <div className="space-y-3 pt-2">
+              <h3 className="text-sm font-semibold">{tv("variantsTitle")}</h3>
+              {variants.map((variant, idx) => (
+                <div
+                  key={variant.id}
+                  className="border rounded-lg p-3 space-y-2 bg-muted/30"
                 >
-                  {copied ? (
-                    <Check className="size-3" />
-                  ) : (
-                    <Copy className="size-3" />
-                  )}
-                  {copied ? "Copied" : "Copy"}
-                </Button>
-              </div>
-              <Textarea
-                value={generatedContent}
-                onChange={(e) => setGeneratedContent(e.target.value)}
-                className="min-h-[120px]"
-              />
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-muted-foreground">
+                      #{idx + 1}
+                    </span>
+                    <Button
+                      size="sm"
+                      onClick={() => handlePick(variant)}
+                      disabled={pickedId === variant.id}
+                    >
+                      {pickedId === variant.id ? (
+                        <Check className="size-3.5" />
+                      ) : null}
+                      {tv("useThis")}
+                    </Button>
+                  </div>
+                  <pre className="text-sm whitespace-pre-wrap font-sans max-h-64 overflow-y-auto">
+                    {variant.content}
+                  </pre>
+                </div>
+              ))}
             </div>
           )}
         </div>
-
-        {generatedContent && (
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>
-              {t("common.cancel")}
-            </Button>
-            <Button onClick={handleInsert}>
-              Use This Content
-            </Button>
-          </DialogFooter>
-        )}
       </DialogContent>
     </Dialog>
   );
