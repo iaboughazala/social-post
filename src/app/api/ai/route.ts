@@ -1,115 +1,110 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getVoiceSession } from "@/lib/voice/session";
+import { buildSystemPrompt, buildGeneratePrompt } from "@/lib/voice/prompts";
+import { runClaude, getGenerateModel } from "@/lib/voice/generate";
+import { parseVariants } from "@/lib/voice/parse";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 120;
 
-const MOCK_CONTENT: Record<string, Record<string, string>> = {
-  en: {
-    professional:
-      "We are excited to announce our latest innovation that transforms the way teams collaborate on social media. Our data-driven approach ensures maximum engagement and growth for your brand.",
-    casual:
-      "Hey everyone! Just wanted to share something cool we've been working on. It's going to make your social media life SO much easier. Stay tuned for the big reveal!",
-    humorous:
-      "Plot twist: managing social media doesn't have to feel like herding cats. We built something that actually makes it fun. Your future self will thank you!",
-    inspirational:
-      "Every great brand starts with a story worth sharing. Today, we're helping you tell yours to the world. Dream big, post consistently, and watch your community grow.",
-  },
-  ar: {
-    professional:
-      "يسعدنا الإعلان عن أحدث ابتكاراتنا التي تحول طريقة تعاون الفرق على وسائل التواصل الاجتماعي. نهجنا المبني على البيانات يضمن أقصى تفاعل ونمو لعلامتك التجارية.",
-    casual:
-      "مرحبا بالجميع! أردنا مشاركة شيء رائع كنا نعمل عليه. سيجعل حياتكم على وسائل التواصل الاجتماعي أسهل بكثير. ترقبوا المفاجأة!",
-    humorous:
-      "مفاجأة: إدارة وسائل التواصل الاجتماعي لا يجب أن تكون مهمة مستحيلة. بنينا شيئاً يجعلها ممتعة فعلاً. ستشكرون أنفسكم لاحقاً!",
-    inspirational:
-      "كل علامة تجارية عظيمة تبدأ بقصة تستحق المشاركة. اليوم، نساعدك في سرد قصتك للعالم. احلم كبيراً، انشر باستمرار، وشاهد مجتمعك ينمو.",
-  },
-};
+const MIN_VARIANTS = 1;
+const MAX_VARIANTS = 5;
 
 export async function POST(request: NextRequest) {
-  const session = await getServerSession(authOptions);
+  const s = await getVoiceSession();
+  if (!s) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const body = await request.json().catch(() => ({}));
+  const { prompt, context, topicId } = body as {
+    prompt?: string;
+    context?: string;
+    topicId?: string;
+    variantCount?: number;
+  };
+
+  if (!prompt || typeof prompt !== "string" || !prompt.trim()) {
+    return NextResponse.json({ error: "prompt is required" }, { status: 400 });
   }
 
+  const requested = typeof body.variantCount === "number" ? body.variantCount : 3;
+  const variantCount = Math.min(MAX_VARIANTS, Math.max(MIN_VARIANTS, Math.floor(requested)));
+
+  const { db } = await import("@/lib/db");
+
+  const [styleProfile, samples, topic] = await Promise.all([
+    db.styleProfile.findUnique({ where: { userId: s.userId } }),
+    db.samplePost.findMany({
+      where: { userId: s.userId },
+      orderBy: { createdAt: "desc" },
+      take: 4,
+    }),
+    topicId
+      ? db.contentTopic.findFirst({ where: { id: topicId, teamId: s.teamId } })
+      : Promise.resolve(null),
+  ]);
+
+  const systemPrompt = buildSystemPrompt({ styleProfile, samples, topic });
+  const userPrompt = buildGeneratePrompt({
+    prompt: prompt.trim(),
+    context: typeof context === "string" ? context.trim() || undefined : undefined,
+    variantCount,
+  });
+
+  const model = getGenerateModel();
+
+  let raw: string;
   try {
-    const body = await request.json();
-    const { topic, tone, platform, language } = body;
+    raw = await runClaude({
+      systemPrompt,
+      userPrompt,
+      model,
+      maxTokens: 4096,
+      temperature: 0.85,
+    });
+  } catch (err) {
+    console.error("Voice generation failed:", err);
+    const message = err instanceof Error ? err.message : "Generation failed";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 
-    if (!topic) {
-      return NextResponse.json(
-        { error: "Topic is required" },
-        { status: 400 }
-      );
-    }
-
-    const selectedTone = tone || "professional";
-    const selectedLanguage = language || "en";
-    const selectedPlatform = platform || "general";
-
-    // If Anthropic API key is available, use Claude
-    if (process.env.ANTHROPIC_API_KEY) {
-      try {
-        const Anthropic = (await import("@anthropic-ai/sdk")).default;
-        const client = new Anthropic({
-          apiKey: process.env.ANTHROPIC_API_KEY,
-        });
-
-        const platformGuidance =
-          selectedPlatform === "twitter"
-            ? "Keep it under 280 characters."
-            : selectedPlatform === "linkedin"
-            ? "Use a professional tone suitable for LinkedIn. Can be longer form."
-            : selectedPlatform === "instagram"
-            ? "Make it engaging and visual-friendly. Include relevant hashtag suggestions."
-            : "Make it suitable for a general social media audience.";
-
-        const message = await client.messages.create({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1024,
-          messages: [
-            {
-              role: "user",
-              content: `Generate a social media post about the following topic.
-
-Topic: ${topic}
-Tone: ${selectedTone}
-Platform: ${selectedPlatform}
-Language: ${selectedLanguage === "ar" ? "Arabic" : "English"}
-
-${platformGuidance}
-
-Return only the post content, no explanations or metadata.`,
-            },
-          ],
-        });
-
-        const textBlock = message.content.find(
-          (block: any) => block.type === "text"
-        );
-        const content = textBlock ? (textBlock as any).text : "";
-
-        return NextResponse.json({ content });
-      } catch (aiError) {
-        console.error("AI generation failed, falling back to mock:", aiError);
-        // Fall through to mock content
-      }
-    }
-
-    // Fallback: return mock content based on tone and language
-    const langContent =
-      MOCK_CONTENT[selectedLanguage] || MOCK_CONTENT["en"];
-    const content =
-      langContent[selectedTone] || langContent["professional"];
-
-    return NextResponse.json({ content });
-  } catch (error) {
-    console.error("Failed to generate content:", error);
+  const parsed = parseVariants(raw);
+  if (parsed.length === 0) {
     return NextResponse.json(
-      { error: "Failed to generate content" },
-      { status: 500 }
+      { error: "Model returned no variants", raw },
+      { status: 502 }
     );
   }
+
+  const generation = await db.generation.create({
+    data: {
+      userId: s.userId,
+      teamId: s.teamId,
+      topicId: topic?.id ?? null,
+      prompt: prompt.trim(),
+      context: typeof context === "string" ? context.trim() || null : null,
+      variantCount: parsed.length,
+      rawResponse: raw,
+      model,
+      variants: {
+        create: parsed.map((v, i) => ({
+          variantIndex: i,
+          content: v.content,
+          hook: v.hook,
+          hashtags: JSON.stringify(v.hashtags),
+        })),
+      },
+    },
+    include: { variants: { orderBy: { variantIndex: "asc" } } },
+  });
+
+  return NextResponse.json({
+    generationId: generation.id,
+    variants: generation.variants.map((v) => ({
+      id: v.id,
+      variantIndex: v.variantIndex,
+      content: v.content,
+      hook: v.hook,
+      hashtags: v.hashtags ? (JSON.parse(v.hashtags) as string[]) : [],
+    })),
+  });
 }
