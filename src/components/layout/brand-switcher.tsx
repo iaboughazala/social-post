@@ -1,8 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import {
   DropdownMenu,
@@ -39,58 +37,58 @@ interface Brand {
 }
 
 export function BrandSwitcher() {
-  const router = useRouter();
-  const { update: updateSession } = useSession();
   const [brands, setBrands] = useState<Brand[]>([]);
   const [loading, setLoading] = useState(true);
-  const [switching, setSwitching] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [newName, setNewName] = useState("");
-  const [creating, setCreating] = useState(false);
-
-  async function load() {
-    try {
-      const r = await fetch("/api/teams", { cache: "no-store" });
-      if (!r.ok) throw new Error("Failed to load brands");
-      const d = await r.json();
-      setBrands(d.teams || []);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  }
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    load();
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await fetch("/api/teams", { cache: "no-store" });
+        if (!r.ok) throw new Error(`teams ${r.status}`);
+        const d = await r.json();
+        if (!cancelled) setBrands(Array.isArray(d?.teams) ? d.teams : []);
+      } catch (e) {
+        if (!cancelled) {
+          console.error("[BrandSwitcher] load failed", e);
+          setError(e instanceof Error ? e.message : "load failed");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const active = brands.find((b) => b.isActive) ?? brands[0];
 
   const switchTo = async (teamId: string) => {
-    if (teamId === active?.id) return;
-    setSwitching(teamId);
+    if (busy || teamId === active?.id) return;
+    setBusy(true);
     try {
       const r = await fetch("/api/teams/switch", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ teamId }),
       });
-      if (!r.ok) throw new Error("Switch failed");
-      await updateSession();
-      router.refresh();
-      toast.success("Switched brand");
-      setTimeout(() => window.location.reload(), 250);
+      if (!r.ok) throw new Error(`switch ${r.status}`);
+      // Hard reload so JWT re-reads active team and every page/API fetches fresh.
+      window.location.href = window.location.pathname;
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed");
-    } finally {
-      setSwitching(null);
+      toast.error(e instanceof Error ? e.message : "Failed to switch");
+      setBusy(false);
     }
   };
 
   const create = async () => {
-    if (!newName.trim()) return;
-    setCreating(true);
+    if (!newName.trim() || busy) return;
+    setBusy(true);
     try {
       const r = await fetch("/api/teams", {
         method: "POST",
@@ -98,18 +96,19 @@ export function BrandSwitcher() {
         body: JSON.stringify({ name: newName.trim() }),
       });
       const d = await r.json();
-      if (!r.ok) throw new Error(d.error || "Failed");
-      toast.success(`Created brand: ${d.team.name}`);
-      setCreateOpen(false);
-      setNewName("");
-      await updateSession();
-      setTimeout(() => window.location.reload(), 250);
+      if (!r.ok) throw new Error(d?.error || "Create failed");
+      window.location.href = window.location.pathname;
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed");
-    } finally {
-      setCreating(false);
+      setBusy(false);
     }
   };
+
+  const label = loading
+    ? "Loading…"
+    : error
+      ? "Brands unavailable"
+      : (active?.name ?? "No brand");
 
   return (
     <>
@@ -128,9 +127,7 @@ export function BrandSwitcher() {
                 <Layers className="size-4" />
               </div>
               <div className="grid flex-1 text-start text-sm leading-tight min-w-0">
-                <span className="truncate font-semibold">
-                  {loading ? "Loading…" : active?.name ?? "No brand"}
-                </span>
+                <span className="truncate font-semibold">{label}</span>
                 <span className="truncate text-xs text-muted-foreground">
                   {brands.length} brand{brands.length !== 1 ? "s" : ""}
                 </span>
@@ -150,11 +147,11 @@ export function BrandSwitcher() {
                 <DropdownMenuItem
                   key={brand.id}
                   onClick={() => switchTo(brand.id)}
-                  disabled={switching !== null}
+                  disabled={busy}
                   className="gap-2"
                 >
-                  <div className="flex aspect-square size-7 items-center justify-center rounded-md bg-muted text-xs font-semibold">
-                    {brand.name.slice(0, 2).toUpperCase()}
+                  <div className="flex aspect-square size-7 items-center justify-center rounded-md bg-muted text-xs font-semibold shrink-0">
+                    {(brand.name || "?").slice(0, 2).toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="truncate text-sm">{brand.name}</div>
@@ -163,19 +160,23 @@ export function BrandSwitcher() {
                       {brand._count?.posts ?? 0} post(s)
                     </div>
                   </div>
-                  {switching === brand.id ? (
-                    <Loader2 className="size-4 animate-spin shrink-0" />
-                  ) : brand.isActive ? (
+                  {brand.isActive ? (
                     <Check className="size-4 shrink-0 text-primary" />
                   ) : null}
                 </DropdownMenuItem>
               ))}
+              {brands.length === 0 && !loading && (
+                <div className="px-2 py-4 text-xs text-muted-foreground text-center">
+                  {error || "No brands yet"}
+                </div>
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => setCreateOpen(true)}
+                disabled={busy}
                 className="gap-2"
               >
-                <div className="flex aspect-square size-7 items-center justify-center rounded-md border border-dashed">
+                <div className="flex aspect-square size-7 items-center justify-center rounded-md border border-dashed shrink-0">
                   <Plus className="size-4" />
                 </div>
                 <span className="text-sm">Create new brand</span>
@@ -208,11 +209,8 @@ export function BrandSwitcher() {
               <Button variant="outline" onClick={() => setCreateOpen(false)}>
                 Cancel
               </Button>
-              <Button
-                onClick={create}
-                disabled={creating || !newName.trim()}
-              >
-                {creating && <Loader2 className="size-4 animate-spin" />}
+              <Button onClick={create} disabled={busy || !newName.trim()}>
+                {busy && <Loader2 className="size-4 animate-spin" />}
                 Create brand
               </Button>
             </div>
