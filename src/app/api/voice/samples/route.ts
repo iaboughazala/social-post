@@ -9,7 +9,7 @@ export async function GET() {
 
   const { db } = await import("@/lib/db");
   const samples = await db.samplePost.findMany({
-    where: { userId: s.userId },
+    where: { teamId: s.teamId },
     orderBy: { createdAt: "desc" },
   });
   return NextResponse.json({ samples });
@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
   const { db } = await import("@/lib/db");
   const sample = await db.samplePost.create({
     data: {
-      userId: s.userId,
+      teamId: s.teamId,
       content: content.trim(),
       notes: typeof notes === "string" ? notes : null,
     },

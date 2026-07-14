@@ -11,7 +11,7 @@ export async function POST() {
 
   const { db } = await import("@/lib/db");
   const samples = await db.samplePost.findMany({
-    where: { userId: s.userId },
+    where: { teamId: s.teamId },
     orderBy: { createdAt: "desc" },
     take: 10,
   });
@@ -26,9 +26,9 @@ export async function POST() {
   try {
     const { style, model } = await analyzeStyle(samples);
     const saved = await db.styleProfile.upsert({
-      where: { userId: s.userId },
+      where: { teamId: s.teamId },
       create: {
-        userId: s.userId,
+        teamId: s.teamId,
         toneSummary: style.toneSummary,
         voicePillars: JSON.stringify(style.voicePillars),
         vocabularyNotes: style.vocabularyNotes,

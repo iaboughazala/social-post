@@ -320,15 +320,15 @@ async function main() {
   }
   console.log(`  ✓ ${TOPICS.length} topics (team ${teamId})`);
 
-  // Sample posts — user-scoped, skip if user already has any
-  const existingCount = await db.samplePost.count({ where: { userId } });
+  // Sample posts — team-scoped, skip if team already has any
+  const existingCount = await db.samplePost.count({ where: { teamId } });
   if (existingCount === 0) {
     for (const p of SAMPLE_POSTS) {
       await db.samplePost.create({
-        data: { userId, content: p.content, notes: p.notes },
+        data: { teamId, content: p.content, notes: p.notes },
       });
     }
-    console.log(`  ✓ ${SAMPLE_POSTS.length} sample posts (user ${userId})`);
+    console.log(`  ✓ ${SAMPLE_POSTS.length} sample posts (team ${teamId})`);
   } else {
     console.log(`  → ${existingCount} sample posts already exist (skipped)`);
   }

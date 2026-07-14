@@ -13,7 +13,7 @@ export async function DELETE(
   const { id } = await ctx.params;
   const { db } = await import("@/lib/db");
   const existing = await db.samplePost.findFirst({
-    where: { id, userId: s.userId },
+    where: { id, teamId: s.teamId },
   });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 

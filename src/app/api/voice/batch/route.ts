@@ -81,9 +81,9 @@ export async function POST(request: NextRequest) {
   const userId = s.userId;
   const teamId = s.teamId;
   const [styleProfile, samples] = await Promise.all([
-    db.styleProfile.findUnique({ where: { userId } }),
+    db.styleProfile.findUnique({ where: { teamId } }),
     db.samplePost.findMany({
-      where: { userId },
+      where: { teamId },
       orderBy: { createdAt: "desc" },
       take: 4,
     }),

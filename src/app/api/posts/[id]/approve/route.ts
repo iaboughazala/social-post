@@ -106,7 +106,7 @@ export async function POST(
     // voice keeps evolving toward what the user actually greenlights.
     await tx.samplePost.create({
       data: {
-        userId: s.userId,
+        teamId: s.teamId,
         content: post.content,
         notes: `Approved on ${new Date().toISOString().slice(0, 10)}${post.id ? ` · post ${post.id}` : ""}`,
       },
@@ -116,7 +116,7 @@ export async function POST(
   // Fire-and-forget: if this pushed the sample count past the threshold,
   // re-analyze the style. Runs after the response so the user isn't blocked.
   setImmediate(() => {
-    maybeAutoAnalyze(s.userId);
+    maybeAutoAnalyze(s.teamId);
   });
 
   return NextResponse.json({

@@ -15,17 +15,17 @@ model User {
   image         String?
   password      String?
   locale        String    @default("en")
+  activeTeamId  String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  accounts     Account[]
-  sessions     Session[]
-  teamMembers  TeamMember[]
-  posts        Post[]
-  approvals    PostApproval[] @relation("reviewer")
-  styleProfile StyleProfile?
-  samplePosts  SamplePost[]
-  generations  Generation[]
+  accounts    Account[]
+  sessions    Session[]
+  teamMembers TeamMember[]
+  posts       Post[]
+  approvals   PostApproval[] @relation("reviewer")
+  generations Generation[]
+  activeTeam  Team?          @relation("ActiveTeam", fields: [activeTeamId], references: [id], onDelete: SetNull)
 
   @@map("users")
 }
@@ -85,6 +85,9 @@ model Team {
   contentTopics      ContentTopic[]
   generations        Generation[]
   publishingSchedule PublishingSchedule?
+  styleProfile       StyleProfile?
+  samplePosts        SamplePost[]
+  activeForUsers     User[]              @relation("ActiveTeam")
 
   @@map("teams")
 }
@@ -220,7 +223,7 @@ model Subscription {
 
 model StyleProfile {
   id              String   @id @default(cuid())
-  userId          String   @unique
+  teamId          String   @unique
   toneSummary     String   @db.Text
   voicePillars    String   @db.Text
   vocabularyNotes String   @db.Text
@@ -233,21 +236,21 @@ model StyleProfile {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
   @@map("style_profiles")
 }
 
 model SamplePost {
   id        String   @id @default(cuid())
-  userId    String
+  teamId    String
   content   String   @db.Text
   notes     String?  @db.Text
   createdAt DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
-  @@index([userId, createdAt])
+  @@index([teamId, createdAt])
   @@map("sample_posts")
 }
 

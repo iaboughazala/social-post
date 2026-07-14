@@ -32,9 +32,9 @@ export async function POST(request: NextRequest) {
   const { db } = await import("@/lib/db");
 
   const [styleProfile, samples, topic] = await Promise.all([
-    db.styleProfile.findUnique({ where: { userId: s.userId } }),
+    db.styleProfile.findUnique({ where: { teamId: s.teamId } }),
     db.samplePost.findMany({
-      where: { userId: s.userId },
+      where: { teamId: s.teamId },
       orderBy: { createdAt: "desc" },
       take: 4,
     }),

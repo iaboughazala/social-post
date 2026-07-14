@@ -48,18 +48,30 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       if (user) {
         token.id = user.id;
-
-        const teamMember = await db.teamMember.findFirst({
-          where: { userId: user.id },
-          include: { team: true },
-        });
-
-        if (teamMember) {
-          token.teamId = teamMember.teamId;
-          token.teamRole = teamMember.role;
+      }
+      // Refresh active team on every request so the switcher takes effect
+      // immediately (also handles the initial login).
+      if (user || trigger === "update" || !token.teamId) {
+        const uid = (user?.id as string) || (token.id as string);
+        if (uid) {
+          const dbUser = await db.user.findUnique({
+            where: { id: uid },
+            select: { activeTeamId: true },
+          });
+          const memberships = await db.teamMember.findMany({
+            where: { userId: uid },
+            orderBy: { id: "asc" },
+          });
+          const activeMembership =
+            memberships.find((m) => m.teamId === dbUser?.activeTeamId) ||
+            memberships[0];
+          if (activeMembership) {
+            token.teamId = activeMembership.teamId;
+            token.teamRole = activeMembership.role;
+          }
         }
       }
       return token;

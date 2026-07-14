@@ -9,7 +9,7 @@ export async function GET() {
 
   const { db } = await import("@/lib/db");
   const style = await db.styleProfile.findUnique({
-    where: { userId: s.userId },
+    where: { teamId: s.teamId },
   });
   return NextResponse.json({ style });
 }
