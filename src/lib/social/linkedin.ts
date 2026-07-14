@@ -2,6 +2,16 @@ const REST_BASE = "https://api.linkedin.com/rest";
 const V2_BASE = "https://api.linkedin.com/v2";
 const LINKEDIN_VERSION = "202604";
 
+/**
+ * LinkedIn Posts API expects "Little Text Format" — certain characters
+ * MUST be preceded by a backslash or the post silently truncates at the
+ * first unescaped one. `#` is left alone so hashtags stay clickable.
+ * https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/posts-api
+ */
+function escapeLtf(text: string): string {
+  return text.replace(/([\\()[\]{}<>@|*_~])/g, "\\$1");
+}
+
 export class LinkedInClient {
   private accessToken: string;
 
@@ -27,7 +37,7 @@ export class LinkedInClient {
 
     const body: Record<string, unknown> = {
       author,
-      commentary: content,
+      commentary: escapeLtf(content),
       visibility: "PUBLIC",
       distribution: {
         feedDistribution: "MAIN_FEED",
