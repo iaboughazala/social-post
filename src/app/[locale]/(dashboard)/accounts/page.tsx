@@ -23,10 +23,13 @@ import {
   InstagramIcon,
   TwitterIcon,
   LinkedinIcon,
+  BlueskyIcon,
 } from "@/components/icons/social-icons";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Plus, RefreshCw, Unlink, Loader2 } from "lucide-react";
 
-type Platform = "facebook" | "instagram" | "twitter" | "linkedin";
+type Platform = "facebook" | "instagram" | "twitter" | "linkedin" | "bluesky";
 
 interface ApiAccount {
   id: string;
@@ -49,6 +52,13 @@ const PLATFORM_CONFIG: Record<
     label: "LinkedIn",
     color: "text-blue-700",
     bgColor: "bg-blue-700 hover:bg-blue-800",
+    available: true,
+  },
+  bluesky: {
+    icon: BlueskyIcon,
+    label: "Bluesky",
+    color: "text-sky-500",
+    bgColor: "bg-sky-500 hover:bg-sky-600",
     available: true,
   },
   facebook: {
@@ -85,6 +95,10 @@ export default function AccountsPage() {
   const [accounts, setAccounts] = useState<ApiAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [connectOpen, setConnectOpen] = useState(false);
+  const [bskyOpen, setBskyOpen] = useState(false);
+  const [bskyHandle, setBskyHandle] = useState("");
+  const [bskyPassword, setBskyPassword] = useState("");
+  const [bskySubmitting, setBskySubmitting] = useState(false);
 
   async function fetchAccounts() {
     try {
@@ -122,8 +136,39 @@ export default function AccountsPage() {
       toast.info(`${config.label} integration is not available yet`);
       return;
     }
+    if (platform === "bluesky") {
+      setConnectOpen(false);
+      setBskyOpen(true);
+      return;
+    }
     setConnectOpen(false);
     window.location.href = `/api/accounts/connect/${platform}`;
+  };
+
+  const submitBluesky = async () => {
+    if (!bskyHandle.trim() || !bskyPassword.trim()) return;
+    setBskySubmitting(true);
+    try {
+      const r = await fetch("/api/accounts/connect/bluesky", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          handle: bskyHandle.trim(),
+          appPassword: bskyPassword.trim(),
+        }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "Failed");
+      toast.success("Bluesky connected");
+      setBskyOpen(false);
+      setBskyHandle("");
+      setBskyPassword("");
+      fetchAccounts();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    } finally {
+      setBskySubmitting(false);
+    }
   };
 
   const handleReconnect = (platform: Platform) => {
@@ -155,6 +200,61 @@ export default function AccountsPage() {
             Manage your linked social media accounts
           </p>
         </div>
+
+        <Dialog open={bskyOpen} onOpenChange={setBskyOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Connect Bluesky</DialogTitle>
+              <DialogDescription>
+                Bluesky uses an app password instead of OAuth. Create one at{" "}
+                <a
+                  href="https://bsky.app/settings/app-passwords"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-primary underline"
+                >
+                  bsky.app → Settings → App Passwords
+                </a>{" "}
+                and paste it below.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3 pt-2">
+              <div>
+                <Label>Handle</Label>
+                <Input
+                  placeholder="yourname.bsky.social"
+                  value={bskyHandle}
+                  onChange={(e) => setBskyHandle(e.target.value)}
+                  autoComplete="off"
+                />
+              </div>
+              <div>
+                <Label>App password</Label>
+                <Input
+                  type="password"
+                  placeholder="xxxx-xxxx-xxxx-xxxx"
+                  value={bskyPassword}
+                  onChange={(e) => setBskyPassword(e.target.value)}
+                  autoComplete="off"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={() => setBskyOpen(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={submitBluesky}
+                  disabled={
+                    bskySubmitting || !bskyHandle.trim() || !bskyPassword.trim()
+                  }
+                >
+                  {bskySubmitting && <Loader2 className="size-4 animate-spin" />}
+                  Connect
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         <Dialog open={connectOpen} onOpenChange={setConnectOpen}>
           <DialogTrigger

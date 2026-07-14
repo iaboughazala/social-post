@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
 import Link from "next/link";
+import Image from "next/image";
 import {
   LayoutDashboard,
   PenSquare,
@@ -89,9 +90,13 @@ export function AppSidebar() {
               size="lg"
               render={<Link href={`/${locale}/dashboard`} />}
             >
-              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <PenSquare className="size-4" />
-              </div>
+              <Image
+                src="/logo-mark.svg"
+                alt="SocialPost"
+                width={32}
+                height={32}
+                className="size-8 rounded-lg"
+              />
               <div className="grid flex-1 text-start text-sm leading-tight">
                 <span className="truncate font-semibold">SocialPost</span>
                 <span className="truncate text-xs text-muted-foreground">

@@ -1,5 +1,6 @@
 import { useTranslations } from "next-intl";
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -325,9 +326,13 @@ export default function LandingPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             <div className="col-span-2 md:col-span-1">
               <div className="flex items-center gap-2 mb-4">
-                <div className="size-8 rounded-lg bg-primary flex items-center justify-center">
-                  <Zap className="size-4 text-primary-foreground" />
-                </div>
+                <Image
+                  src="/logo-mark.svg"
+                  alt="SocialPost"
+                  width={32}
+                  height={32}
+                  className="size-8 rounded-lg"
+                />
                 <span className="font-bold text-lg">SocialPost</span>
               </div>
               <p className="text-sm text-muted-foreground">

@@ -1,0 +1,13 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Social Post">
+  <defs>
+    <linearGradient id="sp-grad" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6366F1"/>
+      <stop offset="1" stop-color="#8B5CF6"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="url(#sp-grad)"/>
+  <g transform="rotate(-45 32 32) translate(8 8) scale(2)">
+    <path d="M2 21l21 -9L2 3v7l15 2l-15 2v7z" fill="#FFFFFF"/>
+    <path d="M2 12l15 0l-15 2v-2z" fill="#C7D2FE"/>
+  </g>
+</svg>

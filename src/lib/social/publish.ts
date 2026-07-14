@@ -2,6 +2,7 @@ import { decryptToken } from "@/lib/crypto";
 import { FacebookClient } from "./facebook";
 import { TwitterClient } from "./twitter";
 import { LinkedInClient } from "./linkedin";
+import { BlueskyClient } from "./bluesky";
 
 export interface SocialAccountForPublish {
   platform: string;
@@ -29,6 +30,14 @@ export async function publishToPlatform(
     case "twitter": {
       const tw = new TwitterClient(token);
       return tw.publishPost(content, mediaUrl);
+    }
+    case "bluesky": {
+      const sep = token.indexOf("\x00");
+      if (sep === -1) throw new Error("Malformed Bluesky credentials");
+      const handle = token.slice(0, sep);
+      const appPassword = token.slice(sep + 1);
+      const bsky = new BlueskyClient(handle, appPassword);
+      return bsky.publishPost(account.platformId, content, mediaUrl);
     }
     default:
       throw new Error(`Unsupported platform: ${account.platform}`);

@@ -24,6 +24,14 @@ export function TwitterIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function BlueskyIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 600 530" fill="currentColor" {...props}>
+      <path d="M135.7 44.5c72 54 149.5 163.5 178 222.3 28.5-58.8 106-168.3 178-222.3 51.9-38.9 136-69 136 26.9 0 19.2-11 161.1-17.4 184.1-22.5 80.1-104.2 100.5-176.9 88.1 127.1 21.6 159.4 93.3 89.7 165-132.4 136.3-190.3-34.2-205.1-77.9-2.7-8-4-11.7-4.1-8.5-.1-3.2-1.4.5-4.1 8.5C295 474.4 237.1 645 104.7 508.6c-69.7-71.7-37.4-143.4 89.7-165-72.7 12.4-154.4-8-176.9-88.1C11.1 232.5.1 90.6.1 71.4c0-95.9 84.1-65.8 136-26.9z" />
+    </svg>
+  );
+}
+
 export function LinkedinIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
