@@ -48,30 +48,32 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async jwt({ token, user, trigger }) {
+    async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
       }
-      // Refresh active team on every request so the switcher takes effect
-      // immediately (also handles the initial login).
-      if (user || trigger === "update" || !token.teamId) {
-        const uid = (user?.id as string) || (token.id as string);
-        if (uid) {
-          const dbUser = await db.user.findUnique({
-            where: { id: uid },
-            select: { activeTeamId: true },
-          });
-          const memberships = await db.teamMember.findMany({
-            where: { userId: uid },
-            orderBy: { id: "asc" },
-          });
-          const activeMembership =
-            memberships.find((m) => m.teamId === dbUser?.activeTeamId) ||
-            memberships[0];
-          if (activeMembership) {
-            token.teamId = activeMembership.teamId;
-            token.teamRole = activeMembership.role;
-          }
+      // Always re-read activeTeamId from DB so brand switch/create takes
+      // effect on the next request without needing an explicit session
+      // refresh. Two tiny queries per JWT read — negligible.
+      const uid = (user?.id as string) || (token.id as string);
+      if (uid) {
+        const dbUser = await db.user.findUnique({
+          where: { id: uid },
+          select: { activeTeamId: true },
+        });
+        const memberships = await db.teamMember.findMany({
+          where: { userId: uid },
+          orderBy: { id: "asc" },
+        });
+        const activeMembership =
+          memberships.find((m) => m.teamId === dbUser?.activeTeamId) ||
+          memberships[0];
+        if (activeMembership) {
+          token.teamId = activeMembership.teamId;
+          token.teamRole = activeMembership.role;
+        } else {
+          delete (token as Record<string, unknown>).teamId;
+          delete (token as Record<string, unknown>).teamRole;
         }
       }
       return token;
