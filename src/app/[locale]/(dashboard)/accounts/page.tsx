@@ -27,6 +27,7 @@ import {
 } from "@/components/icons/social-icons";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Plus, RefreshCw, Unlink, Loader2 } from "lucide-react";
 
 type Platform = "facebook" | "instagram" | "twitter" | "linkedin" | "bluesky";
@@ -99,6 +100,9 @@ export default function AccountsPage() {
   const [bskyHandle, setBskyHandle] = useState("");
   const [bskyPassword, setBskyPassword] = useState("");
   const [bskySubmitting, setBskySubmitting] = useState(false);
+  const [fbOpen, setFbOpen] = useState(false);
+  const [fbToken, setFbToken] = useState("");
+  const [fbSubmitting, setFbSubmitting] = useState(false);
 
   async function fetchAccounts() {
     try {
@@ -141,8 +145,35 @@ export default function AccountsPage() {
       setBskyOpen(true);
       return;
     }
+    if (platform === "facebook") {
+      setConnectOpen(false);
+      setFbOpen(true);
+      return;
+    }
     setConnectOpen(false);
     window.location.href = `/api/accounts/connect/${platform}`;
+  };
+
+  const submitFacebook = async () => {
+    if (!fbToken.trim()) return;
+    setFbSubmitting(true);
+    try {
+      const r = await fetch("/api/accounts/connect/facebook-page", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pageToken: fbToken.trim() }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "Failed");
+      toast.success(`Connected: ${d.account?.name || "Facebook Page"}`);
+      setFbOpen(false);
+      setFbToken("");
+      fetchAccounts();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    } finally {
+      setFbSubmitting(false);
+    }
   };
 
   const submitBluesky = async () => {
@@ -200,6 +231,60 @@ export default function AccountsPage() {
             Manage your linked social media accounts
           </p>
         </div>
+
+        <Dialog open={fbOpen} onOpenChange={setFbOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Connect Facebook Page</DialogTitle>
+              <DialogDescription>
+                Paste a long-lived Page Access Token for the page you want to
+                publish to. Get one from{" "}
+                <a
+                  href="https://developers.facebook.com/tools/explorer"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-primary underline"
+                >
+                  Graph API Explorer
+                </a>
+                : select your app, request{" "}
+                <code className="text-xs bg-muted px-1 rounded">
+                  pages_manage_posts, pages_show_list
+                </code>
+                , query <code className="text-xs bg-muted px-1 rounded">/me/accounts</code>, then
+                copy the <em>access_token</em> for the page you want.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3 pt-2">
+              <div>
+                <Label>Page Access Token</Label>
+                <Textarea
+                  placeholder="EAAG..."
+                  value={fbToken}
+                  onChange={(e) => setFbToken(e.target.value)}
+                  className="font-mono text-xs min-h-[100px]"
+                  autoComplete="off"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  We verify the token by fetching the page identity and store
+                  it encrypted. Page ID and name are detected automatically.
+                </p>
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={() => setFbOpen(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={submitFacebook}
+                  disabled={fbSubmitting || !fbToken.trim()}
+                >
+                  {fbSubmitting && <Loader2 className="size-4 animate-spin" />}
+                  Connect
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         <Dialog open={bskyOpen} onOpenChange={setBskyOpen}>
           <DialogContent>
