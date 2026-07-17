@@ -68,7 +68,19 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: "Account not found" }, { status: 404 });
   }
 
-  await db.socialAccount.delete({ where: { id: accountId } });
+  // Soft-delete: keep the row so historical PostAccount links (and the
+  // published-history they represent) survive. Wipe the token so a leaked
+  // DB dump can't be used to post. Reconnecting the same platform+platformId
+  // upserts back to isActive=true with a fresh token.
+  await db.socialAccount.update({
+    where: { id: accountId },
+    data: {
+      isActive: false,
+      accessToken: "",
+      refreshToken: null,
+      expiresAt: null,
+    },
+  });
 
   return NextResponse.json({ success: true });
 }
