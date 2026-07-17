@@ -165,7 +165,17 @@ export default function AccountsPage() {
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || "Failed");
-      toast.success(`Connected: ${d.account?.name || "Facebook Page"}`);
+      const savedList: Array<{ name: string }> = Array.isArray(d.saved)
+        ? d.saved
+        : d.account
+          ? [d.account]
+          : [];
+      const label =
+        savedList.length === 1
+          ? savedList[0].name
+          : `${savedList.length} pages`;
+      toast.success(`Connected: ${label}`);
+      if (d.note) toast.info(d.note);
       setFbOpen(false);
       setFbToken("");
       fetchAccounts();
@@ -235,10 +245,15 @@ export default function AccountsPage() {
         <Dialog open={fbOpen} onOpenChange={setFbOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Connect Facebook Page</DialogTitle>
+              <DialogTitle>Connect Facebook Pages</DialogTitle>
               <DialogDescription>
-                Paste a long-lived Page Access Token for the page you want to
-                publish to. Get one from{" "}
+                Paste a Facebook <strong>User Access Token</strong> — we&apos;ll
+                exchange it for a long-lived one and import every page you
+                admin at once. Or paste a single Page Access Token to add
+                just that page.
+                <br />
+                <br />
+                Get one from{" "}
                 <a
                   href="https://developers.facebook.com/tools/explorer"
                   target="_blank"
@@ -247,12 +262,12 @@ export default function AccountsPage() {
                 >
                   Graph API Explorer
                 </a>
-                : select your app, request{" "}
+                : select your app → request{" "}
                 <code className="text-xs bg-muted px-1 rounded">
                   pages_manage_posts, pages_show_list
-                </code>
-                , query <code className="text-xs bg-muted px-1 rounded">/me/accounts</code>, then
-                copy the <em>access_token</em> for the page you want.
+                </code>{" "}
+                → click <em>Generate Access Token</em> → copy the token at
+                the top and paste it here.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-3 pt-2">
