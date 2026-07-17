@@ -3,12 +3,12 @@
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { format } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Check, Edit3, Loader2, Trash2, X } from "lucide-react";
+import { Check, CheckCheck, Edit3, Loader2, Trash2, X } from "lucide-react";
+import { format } from "date-fns";
 
 interface QueueItem {
   id: string;
@@ -31,6 +31,7 @@ export default function QueuePage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [approvingAll, setApprovingAll] = useState(false);
 
   async function load() {
     try {
@@ -89,6 +90,26 @@ export default function QueuePage() {
     }
   };
 
+  const approveAll = async () => {
+    if (items.length === 0) return;
+    if (!confirm(t("approveAllConfirm", { count: items.length }))) return;
+    setApprovingAll(true);
+    try {
+      const r = await fetch("/api/voice/queue/approve-all", { method: "POST" });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "Failed");
+      const first = d.firstSlot
+        ? format(new Date(d.firstSlot), "MMM d, HH:mm")
+        : "—";
+      toast.success(t("approveAllDone", { approved: d.approved, first }));
+      load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    } finally {
+      setApprovingAll(false);
+    }
+  };
+
   const approve = async (id: string) => {
     setBusyId(id);
     try {
@@ -107,9 +128,24 @@ export default function QueuePage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h2 className="text-lg font-semibold">{t("title")}</h2>
-        <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold">{t("title")}</h2>
+          <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
+        </div>
+        {items.length > 0 && (
+          <Button
+            onClick={approveAll}
+            disabled={approvingAll || busyId !== null}
+          >
+            {approvingAll ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <CheckCheck className="size-4" />
+            )}
+            {t("approveAll", { count: items.length })}
+          </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-3 gap-3">
