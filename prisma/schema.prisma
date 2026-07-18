@@ -231,7 +231,7 @@ model StyleProfile {
   doList             String   @db.Text
   dontList           String   @db.Text
   rawAnalysis        String   @db.Text
-  customInstructions String   @default("") @db.Text
+  customInstructions String?  @db.Text
   sourceSamples      Int      @default(0)
   model              String?
   createdAt          DateTime @default(now())
