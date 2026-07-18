@@ -6,7 +6,8 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, Sparkles } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Loader2, Save, Sparkles } from "lucide-react";
 
 interface StyleProfile {
   id: string;
@@ -17,6 +18,7 @@ interface StyleProfile {
   doList: string;
   dontList: string;
   rawAnalysis: string;
+  customInstructions: string;
   sourceSamples: number;
   model: string | null;
   updatedAt: string;
@@ -34,9 +36,12 @@ function parseArr(raw: string | null | undefined): string[] {
 
 export default function StylePage() {
   const t = useTranslations("voice.style");
+  const tc = useTranslations("voice.style.custom");
   const [style, setStyle] = useState<StyleProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
+  const [customText, setCustomText] = useState("");
+  const [savingCustom, setSavingCustom] = useState(false);
 
   async function load() {
     try {
@@ -44,12 +49,32 @@ export default function StylePage() {
       if (!r.ok) throw new Error("Failed");
       const d = await r.json();
       setStyle(d.style);
+      setCustomText(d.style?.customInstructions ?? "");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed");
     } finally {
       setLoading(false);
     }
   }
+
+  const saveCustom = async () => {
+    setSavingCustom(true);
+    try {
+      const r = await fetch("/api/voice/style", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customInstructions: customText }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "Failed");
+      setStyle(d.style);
+      toast.success(tc("saved"));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    } finally {
+      setSavingCustom(false);
+    }
+  };
 
   useEffect(() => {
     load();
@@ -90,6 +115,32 @@ export default function StylePage() {
           {analyzing ? t("analyzing") : t("analyze")}
         </Button>
       </div>
+
+      <Card>
+        <CardContent className="pt-4 space-y-3">
+          <div>
+            <h3 className="text-sm font-semibold">{tc("title")}</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">{tc("subtitle")}</p>
+          </div>
+          <Textarea
+            value={customText}
+            onChange={(e) => setCustomText(e.target.value)}
+            placeholder={tc("placeholder")}
+            className="min-h-[220px] text-sm"
+            dir="auto"
+          />
+          <div className="flex justify-end">
+            <Button onClick={saveCustom} disabled={savingCustom}>
+              {savingCustom ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Save className="size-4" />
+              )}
+              {tc("save")}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {loading ? (
         <Card>

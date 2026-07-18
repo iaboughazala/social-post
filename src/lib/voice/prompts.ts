@@ -18,6 +18,23 @@ export function buildSystemPrompt(opts: {
 }): string {
   const parts: string[] = [BASE_VOICE];
 
+  // User-authored writing rules take precedence over everything else —
+  // they represent explicit decisions from the human reviewer after
+  // looking at generated output. Put them RIGHT AFTER the base voice
+  // (before the auto-extracted style) so the model reads them first.
+  const custom = opts.styleProfile?.customInstructions?.trim();
+  if (custom) {
+    parts.push(
+      `
+---
+
+**قواعد الكتابة الصارمة (من الكاتب — التزم بها حرفياً، وأي تعارض بينها وبين ما يلي يُحسم لصالحها):**
+
+${custom}
+`.trim()
+    );
+  }
+
   if (opts.styleProfile) {
     const pillars = safeJsonArray(opts.styleProfile.voicePillars);
     const doList = safeJsonArray(opts.styleProfile.doList);

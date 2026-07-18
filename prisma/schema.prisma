@@ -222,19 +222,20 @@ model Subscription {
 // ============================================================
 
 model StyleProfile {
-  id              String   @id @default(cuid())
-  teamId          String   @unique
-  toneSummary     String   @db.Text
-  voicePillars    String   @db.Text
-  vocabularyNotes String   @db.Text
-  structureNotes  String   @db.Text
-  doList          String   @db.Text
-  dontList        String   @db.Text
-  rawAnalysis     String   @db.Text
-  sourceSamples   Int      @default(0)
-  model           String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  teamId             String   @unique
+  toneSummary        String   @db.Text
+  voicePillars       String   @db.Text
+  vocabularyNotes    String   @db.Text
+  structureNotes     String   @db.Text
+  doList             String   @db.Text
+  dontList           String   @db.Text
+  rawAnalysis        String   @db.Text
+  customInstructions String   @default("") @db.Text
+  sourceSamples      Int      @default(0)
+  model              String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
 

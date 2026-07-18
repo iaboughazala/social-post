@@ -156,7 +156,15 @@
       "raw": "Full analysis",
       "sourceSamples": "Based on {count} samples",
       "model": "Model",
-      "lastAnalyzed": "Last analyzed"
+      "lastAnalyzed": "Last analyzed",
+      "custom": {
+        "title": "Custom writing rules",
+        "subtitle": "These override everything else — the AI reads them first before the auto-extracted style and any sample. Add feedback from posts you didn't like here.",
+        "placeholder": "e.g. Don't repeat the same idea. Start with a real problem, not a framework definition. Write as a consultant who ran the project — not as a coach…",
+        "save": "Save rules",
+        "saved": "Rules saved",
+        "empty": "No custom rules yet."
+      }
     },
     "compose": {
       "topicLabel": "Topic",
