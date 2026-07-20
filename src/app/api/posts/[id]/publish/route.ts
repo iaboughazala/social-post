@@ -67,7 +67,8 @@ export async function POST(
           accessToken: socialAccount.accessToken,
         },
         post.content,
-        firstMedia
+        firstMedia,
+        post.id
       );
       const platformPostId =
         (result as { id?: string }).id ||

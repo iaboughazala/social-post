@@ -28,10 +28,10 @@ import {
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, RefreshCw, Unlink, Loader2 } from "lucide-react";
+import { Newspaper, Plus, RefreshCw, Unlink, Loader2 } from "lucide-react";
 import { safeJson, errorFromResponse } from "@/lib/fetch-json";
 
-type Platform = "facebook" | "instagram" | "twitter" | "linkedin" | "bluesky";
+type Platform = "facebook" | "instagram" | "twitter" | "linkedin" | "bluesky" | "wasla";
 
 interface ApiAccount {
   id: string;
@@ -61,6 +61,13 @@ const PLATFORM_CONFIG: Record<
     label: "Bluesky",
     color: "text-sky-500",
     bgColor: "bg-sky-500 hover:bg-sky-600",
+    available: true,
+  },
+  wasla: {
+    icon: Newspaper,
+    label: "Wasla (Articles)",
+    color: "text-emerald-600",
+    bgColor: "bg-emerald-600 hover:bg-emerald-700",
     available: true,
   },
   facebook: {
@@ -104,6 +111,10 @@ export default function AccountsPage() {
   const [fbOpen, setFbOpen] = useState(false);
   const [fbToken, setFbToken] = useState("");
   const [fbSubmitting, setFbSubmitting] = useState(false);
+  const [wsOpen, setWsOpen] = useState(false);
+  const [wsBase, setWsBase] = useState("https://wasla.ws/api/integrations/social-post");
+  const [wsKey, setWsKey] = useState("");
+  const [wsSubmitting, setWsSubmitting] = useState(false);
 
   async function fetchAccounts() {
     try {
@@ -151,8 +162,41 @@ export default function AccountsPage() {
       setFbOpen(true);
       return;
     }
+    if (platform === "wasla") {
+      setConnectOpen(false);
+      setWsOpen(true);
+      return;
+    }
     setConnectOpen(false);
     window.location.href = `/api/accounts/connect/${platform}`;
+  };
+
+  const submitWasla = async () => {
+    if (!wsKey.trim() || !wsBase.trim()) return;
+    setWsSubmitting(true);
+    try {
+      const r = await fetch("/api/accounts/connect/wasla", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          apiBase: wsBase.trim(),
+          apiKey: wsKey.trim(),
+        }),
+      });
+      const d = await safeJson<{
+        error?: string;
+        account?: { name: string; profileUrl?: string };
+      }>(r);
+      if (!r.ok || !d) throw new Error(errorFromResponse(r, d));
+      toast.success(`Connected: ${d.account?.name ?? "Wasla"}`);
+      setWsOpen(false);
+      setWsKey("");
+      fetchAccounts();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    } finally {
+      setWsSubmitting(false);
+    }
   };
 
   const submitFacebook = async () => {
@@ -247,6 +291,62 @@ export default function AccountsPage() {
             Manage your linked social media accounts
           </p>
         </div>
+
+        <Dialog open={wsOpen} onOpenChange={setWsOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Connect Wasla</DialogTitle>
+              <DialogDescription>
+                Publish approved posts as articles on your Wasla profile.
+                Generate an API key from{" "}
+                <a
+                  href="https://wasla.ws/dashboard/integrations"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-primary underline"
+                >
+                  Wasla → Dashboard → Integrations
+                </a>{" "}
+                and paste it below.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3 pt-2">
+              <div>
+                <Label>API base URL</Label>
+                <Input
+                  value={wsBase}
+                  onChange={(e) => setWsBase(e.target.value)}
+                  autoComplete="off"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Leave the default unless Wasla told you otherwise.
+                </p>
+              </div>
+              <div>
+                <Label>API key</Label>
+                <Input
+                  type="password"
+                  placeholder="wasla_…"
+                  value={wsKey}
+                  onChange={(e) => setWsKey(e.target.value)}
+                  autoComplete="off"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={() => setWsOpen(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={submitWasla}
+                  disabled={wsSubmitting || !wsKey.trim() || !wsBase.trim()}
+                >
+                  {wsSubmitting && <Loader2 className="size-4 animate-spin" />}
+                  Connect
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         <Dialog open={fbOpen} onOpenChange={setFbOpen}>
           <DialogContent>

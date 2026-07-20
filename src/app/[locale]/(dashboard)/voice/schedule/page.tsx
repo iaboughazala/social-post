@@ -19,7 +19,7 @@ import { format } from "date-fns";
 import { Calendar, Loader2, Plus, Save, X } from "lucide-react";
 
 const DAYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
-const PLATFORMS = ["linkedin", "twitter", "facebook", "instagram"] as const;
+const PLATFORMS = ["linkedin", "twitter", "facebook", "instagram", "bluesky", "wasla"] as const;
 const TIMEZONES = [
   "Asia/Riyadh",
   "Asia/Dubai",

@@ -5,7 +5,7 @@ import { reslotTeam } from "@/lib/voice/reslot";
 
 export const dynamic = "force-dynamic";
 
-const PLATFORM_KEYS = ["linkedin", "twitter", "facebook", "instagram"];
+const PLATFORM_KEYS = ["linkedin", "twitter", "facebook", "instagram", "bluesky", "wasla"];
 
 export async function GET() {
   const s = await getVoiceSession();

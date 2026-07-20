@@ -58,7 +58,8 @@ export async function GET(req: NextRequest) {
               accessToken: socialAccount.accessToken,
             },
             post.content,
-            firstMedia
+            firstMedia,
+            post.id
           );
           platformPostId =
             (result as { id?: string }).id ||
