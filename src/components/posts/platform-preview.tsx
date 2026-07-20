@@ -13,15 +13,23 @@ import {
   MoreHorizontal,
   Globe,
   Image as ImageIcon,
+  Newspaper,
 } from "lucide-react";
 import {
   FacebookIcon,
   InstagramIcon,
   TwitterIcon,
   LinkedinIcon,
+  BlueskyIcon,
 } from "@/components/icons/social-icons";
 
-type Platform = "facebook" | "instagram" | "twitter" | "linkedin";
+type Platform =
+  | "facebook"
+  | "instagram"
+  | "twitter"
+  | "linkedin"
+  | "bluesky"
+  | "wasla";
 
 interface PlatformPreviewProps {
   content: string;
@@ -35,6 +43,8 @@ const PLATFORM_LIMITS: Record<Platform, number> = {
   linkedin: 3000,
   facebook: 63206,
   instagram: 2200,
+  bluesky: 300,
+  wasla: 20000,
 };
 
 const PLATFORM_CONFIG: Record<
@@ -74,6 +84,20 @@ const PLATFORM_CONFIG: Record<
     color: "text-blue-700",
     bgColor: "bg-blue-50 dark:bg-blue-950/30",
     borderColor: "border-blue-200 dark:border-blue-800",
+  },
+  bluesky: {
+    name: "Bluesky",
+    icon: BlueskyIcon,
+    color: "text-sky-500",
+    bgColor: "bg-sky-50 dark:bg-sky-950/30",
+    borderColor: "border-sky-200 dark:border-sky-800",
+  },
+  wasla: {
+    name: "Wasla (Article)",
+    icon: Newspaper,
+    color: "text-emerald-600",
+    bgColor: "bg-emerald-50 dark:bg-emerald-950/30",
+    borderColor: "border-emerald-200 dark:border-emerald-800",
   },
 };
 
@@ -253,6 +277,85 @@ function LinkedInPreview({
   );
 }
 
+function BlueskyPreview({
+  content,
+  mediaUrls,
+}: {
+  content: string;
+  mediaUrls: string[];
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex gap-3">
+        <div className="size-10 rounded-full bg-sky-500 flex items-center justify-center text-white font-bold text-sm shrink-0">
+          SP
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1">
+            <span className="text-sm font-bold">Social Post</span>
+            <span className="text-sm text-muted-foreground">@socialpost.bsky.social</span>
+            <span className="text-sm text-muted-foreground">- now</span>
+          </div>
+          <p className="text-sm whitespace-pre-wrap mt-0.5">
+            {content || "Your post content will appear here..."}
+          </p>
+          {mediaUrls.length > 0 ? (
+            <div className="rounded-xl overflow-hidden bg-muted aspect-video flex items-center justify-center mt-3 border">
+              <ImageIcon className="size-8 text-muted-foreground" />
+            </div>
+          ) : null}
+          <div className="flex items-center justify-between pt-3 text-muted-foreground max-w-[300px]">
+            <MessageCircle className="size-4" />
+            <Repeat2 className="size-4" />
+            <Heart className="size-4" />
+            <Share2 className="size-4" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function WaslaPreview({
+  content,
+  mediaUrls,
+}: {
+  content: string;
+  mediaUrls: string[];
+}) {
+  const trimmed = (content || "").trim();
+  const firstLine = trimmed.split(/\r?\n/).find((l) => l.trim()) || "";
+  const title = firstLine.slice(0, 120) || "Untitled article";
+  const body = trimmed.slice(firstLine.length).trim() || "Article body preview…";
+
+  return (
+    <div className="space-y-3">
+      {mediaUrls.length > 0 ? (
+        <div className="rounded-lg overflow-hidden bg-muted aspect-video flex items-center justify-center border">
+          <ImageIcon className="size-10 text-muted-foreground" />
+        </div>
+      ) : null}
+      <div className="flex items-center gap-2">
+        <div className="size-8 rounded-full bg-emerald-600 flex items-center justify-center text-white font-bold text-xs">
+          SP
+        </div>
+        <div className="text-xs text-muted-foreground">
+          wasla.ws/aboughazalai
+          <span className="mx-1">·</span>
+          <span>just now</span>
+        </div>
+      </div>
+      <h3 className="text-base font-bold leading-snug">{title}</h3>
+      <p className="text-sm text-muted-foreground whitespace-pre-wrap line-clamp-6">
+        {body}
+      </p>
+      <button className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">
+        Read more →
+      </button>
+    </div>
+  );
+}
+
 const PREVIEW_COMPONENTS: Record<
   Platform,
   React.ComponentType<{ content: string; mediaUrls: string[] }>
@@ -261,6 +364,8 @@ const PREVIEW_COMPONENTS: Record<
   instagram: InstagramPreview,
   twitter: TwitterPreview,
   linkedin: LinkedInPreview,
+  bluesky: BlueskyPreview,
+  wasla: WaslaPreview,
 };
 
 export function PlatformPreview({

@@ -30,12 +30,14 @@ import {
   Image as ImageIcon,
   Loader2,
   AlertTriangle,
+  Newspaper,
 } from "lucide-react";
 import {
   FacebookIcon,
   InstagramIcon,
   TwitterIcon,
   LinkedinIcon,
+  BlueskyIcon,
 } from "@/components/icons/social-icons";
 import { cn } from "@/lib/utils";
 import { PlatformPreview, type Platform } from "@/components/posts/platform-preview";
@@ -91,6 +93,20 @@ const PLATFORMS: {
     icon: LinkedinIcon,
     color: "text-blue-700",
     bgActive: "bg-blue-50 border-blue-400 dark:bg-blue-950/40 dark:border-blue-600",
+  },
+  {
+    id: "bluesky",
+    name: "Bluesky",
+    icon: BlueskyIcon,
+    color: "text-sky-500",
+    bgActive: "bg-sky-50 border-sky-300 dark:bg-sky-950/40 dark:border-sky-700",
+  },
+  {
+    id: "wasla",
+    name: "Wasla",
+    icon: Newspaper,
+    color: "text-emerald-600",
+    bgActive: "bg-emerald-50 border-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-700",
   },
 ];
 
