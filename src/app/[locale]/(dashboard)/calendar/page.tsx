@@ -40,10 +40,18 @@ import {
   InstagramIcon,
   TwitterIcon,
   LinkedinIcon,
+  BlueskyIcon,
+  WaslaIcon,
 } from "@/components/icons/social-icons";
 import { cn } from "@/lib/utils";
 
-type Platform = "facebook" | "instagram" | "twitter" | "linkedin";
+type Platform =
+  | "facebook"
+  | "instagram"
+  | "twitter"
+  | "linkedin"
+  | "bluesky"
+  | "wasla";
 type PostStatus = "scheduled" | "publishing" | "published" | "failed";
 
 interface CalendarPost {
@@ -61,6 +69,8 @@ const PLATFORM_COLORS: Record<Platform, string> = {
   instagram: "bg-pink-500",
   twitter: "bg-neutral-900 dark:bg-neutral-100",
   linkedin: "bg-blue-700",
+  bluesky: "bg-sky-500",
+  wasla: "bg-emerald-600",
 };
 
 const PLATFORM_ICONS: Record<Platform, React.ElementType> = {
@@ -68,6 +78,8 @@ const PLATFORM_ICONS: Record<Platform, React.ElementType> = {
   instagram: InstagramIcon,
   twitter: TwitterIcon,
   linkedin: LinkedinIcon,
+  bluesky: BlueskyIcon,
+  wasla: WaslaIcon,
 };
 
 const PLATFORM_TEXT: Record<Platform, string> = {
@@ -75,6 +87,8 @@ const PLATFORM_TEXT: Record<Platform, string> = {
   instagram: "text-pink-600",
   twitter: "text-neutral-900 dark:text-neutral-100",
   linkedin: "text-blue-700",
+  bluesky: "text-sky-500",
+  wasla: "",
 };
 
 const STATUS_COLORS: Record<string, string> = {

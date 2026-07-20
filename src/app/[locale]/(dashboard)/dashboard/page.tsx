@@ -32,16 +32,26 @@ import {
   InstagramIcon,
   TwitterIcon,
   LinkedinIcon,
+  BlueskyIcon,
+  WaslaIcon,
 } from "@/components/icons/social-icons";
 import { cn } from "@/lib/utils";
 
-type Platform = "facebook" | "instagram" | "twitter" | "linkedin";
+type Platform =
+  | "facebook"
+  | "instagram"
+  | "twitter"
+  | "linkedin"
+  | "bluesky"
+  | "wasla";
 
 const PLATFORM_ICONS: Record<string, React.ElementType> = {
   facebook: FacebookIcon,
   instagram: InstagramIcon,
   twitter: TwitterIcon,
   linkedin: LinkedinIcon,
+  bluesky: BlueskyIcon,
+  wasla: WaslaIcon,
 };
 
 const PLATFORM_COLORS: Record<string, string> = {
@@ -49,6 +59,8 @@ const PLATFORM_COLORS: Record<string, string> = {
   instagram: "text-pink-600",
   twitter: "text-neutral-900 dark:text-neutral-100",
   linkedin: "text-blue-700",
+  bluesky: "text-sky-500",
+  wasla: "",
 };
 
 interface DashboardPost {

@@ -1,4 +1,23 @@
-import { SVGProps } from "react";
+import { HTMLAttributes, SVGProps } from "react";
+
+/**
+ * Wasla brand mark. Backed by /wasla-icon.png so we render an <img>
+ * instead of an <svg> — but keeps the same size-N className API the
+ * other icons use, so drop-in works everywhere the SVG icons do.
+ */
+export function WaslaIcon({
+  className,
+  ...rest
+}: HTMLAttributes<HTMLImageElement>) {
+  return (
+    <img
+      src="/wasla-icon.png"
+      alt="Wasla"
+      className={className}
+      {...rest}
+    />
+  );
+}
 
 export function FacebookIcon(props: SVGProps<SVGSVGElement>) {
   return (

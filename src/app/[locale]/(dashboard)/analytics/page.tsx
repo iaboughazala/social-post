@@ -25,6 +25,8 @@ import {
   InstagramIcon,
   TwitterIcon,
   LinkedinIcon,
+  BlueskyIcon,
+  WaslaIcon,
 } from "@/components/icons/social-icons";
 import {
   LineChart,
@@ -68,6 +70,8 @@ const PLATFORM_ICON_MAP: Record<string, React.ElementType> = {
   instagram: InstagramIcon,
   twitter: TwitterIcon,
   linkedin: LinkedinIcon,
+  bluesky: BlueskyIcon,
+  wasla: WaslaIcon,
 };
 
 const PLATFORM_COLOR_MAP: Record<string, string> = {
@@ -75,6 +79,8 @@ const PLATFORM_COLOR_MAP: Record<string, string> = {
   instagram: "text-pink-600",
   twitter: "text-neutral-900 dark:text-neutral-100",
   linkedin: "text-blue-700",
+  bluesky: "text-sky-500",
+  wasla: "",
 };
 
 const PLATFORM_LABEL: Record<string, string> = {
@@ -82,6 +88,8 @@ const PLATFORM_LABEL: Record<string, string> = {
   instagram: "Instagram",
   twitter: "X",
   linkedin: "LinkedIn",
+  bluesky: "Bluesky",
+  wasla: "Wasla",
 };
 
 const WEEKDAY_LABEL: Record<string, string> = {
