@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Check, CheckCheck, Edit3, Loader2, Trash2, X } from "lucide-react";
+import { Check, CheckCheck, Copy, Edit3, Loader2, Trash2, X } from "lucide-react";
 import { format } from "date-fns";
 import { safeJson, errorFromResponse } from "@/lib/fetch-json";
 
@@ -211,6 +211,22 @@ export default function QueuePage() {
                     </div>
                     {!isEditing && (
                       <div className="flex gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={async () => {
+                            try {
+                              await navigator.clipboard.writeText(item.content);
+                              toast.success(t("copied"));
+                            } catch {
+                              toast.error(t("copyFailed"));
+                            }
+                          }}
+                          disabled={isBusy}
+                        >
+                          <Copy className="size-3.5" />
+                          {t("copy")}
+                        </Button>
                         <Button
                           variant="outline"
                           size="sm"
