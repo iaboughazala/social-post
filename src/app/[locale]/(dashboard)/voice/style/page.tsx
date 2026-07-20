@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Save, Sparkles } from "lucide-react";
+import { safeJson, errorFromResponse } from "@/lib/fetch-json";
 
 interface StyleProfile {
   id: string;
@@ -65,9 +66,9 @@ export default function StylePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ customInstructions: customText }),
       });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error || "Failed");
-      setStyle(d.style);
+      const d = await safeJson<{ error?: string; style?: StyleProfile }>(r);
+      if (!r.ok || !d) throw new Error(errorFromResponse(r, d));
+      setStyle(d.style ?? null);
       toast.success(tc("saved"));
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed");
@@ -84,9 +85,9 @@ export default function StylePage() {
     setAnalyzing(true);
     try {
       const r = await fetch("/api/voice/analyze", { method: "POST" });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error || "Analysis failed");
-      setStyle(d.style);
+      const d = await safeJson<{ error?: string; style?: StyleProfile }>(r);
+      if (!r.ok || !d) throw new Error(errorFromResponse(r, d));
+      setStyle(d.style ?? null);
       toast.success("Style analyzed");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed");

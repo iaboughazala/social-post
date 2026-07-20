@@ -17,6 +17,7 @@ import {
   Link2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { safeJson, errorFromResponse } from "@/lib/fetch-json";
 
 interface Brand {
   id: string;
@@ -76,8 +77,8 @@ export default function BrandsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newName.trim() }),
       });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d?.error || "Create failed");
+      const d = await safeJson<{ error?: string }>(r);
+      if (!r.ok || !d) throw new Error(errorFromResponse(r, d));
       window.location.href = window.location.pathname;
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed");

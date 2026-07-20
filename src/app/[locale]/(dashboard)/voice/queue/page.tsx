@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Check, CheckCheck, Edit3, Loader2, Trash2, X } from "lucide-react";
 import { format } from "date-fns";
+import { safeJson, errorFromResponse } from "@/lib/fetch-json";
 
 interface QueueItem {
   id: string;
@@ -96,12 +97,12 @@ export default function QueuePage() {
     setApprovingAll(true);
     try {
       const r = await fetch("/api/voice/queue/approve-all", { method: "POST" });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error || "Failed");
+      const d = await safeJson<{ error?: string; firstSlot?: string; approved?: number }>(r);
+      if (!r.ok || !d) throw new Error(errorFromResponse(r, d));
       const first = d.firstSlot
         ? format(new Date(d.firstSlot), "MMM d, HH:mm")
         : "—";
-      toast.success(t("approveAllDone", { approved: d.approved, first }));
+      toast.success(t("approveAllDone", { approved: d.approved ?? 0, first }));
       load();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed");
@@ -114,9 +115,9 @@ export default function QueuePage() {
     setBusyId(id);
     try {
       const r = await fetch(`/api/posts/${id}/approve`, { method: "POST" });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error || "Failed");
-      const when = format(new Date(d.scheduledAt), "MMM d, yyyy 'at' HH:mm");
+      const d = await safeJson<{ error?: string; scheduledAt?: string }>(r);
+      if (!r.ok || !d) throw new Error(errorFromResponse(r, d));
+      const when = format(new Date(d.scheduledAt ?? Date.now()), "MMM d, yyyy 'at' HH:mm");
       toast.success(t("approved", { when }));
       setItems((prev) => prev.filter((x) => x.id !== id));
     } catch (e) {

@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Sparkles, Loader2, Check } from "lucide-react";
+import { safeJson, errorFromResponse } from "@/lib/fetch-json";
 
 interface AIDialogProps {
   onInsert: (content: string) => void;
@@ -82,8 +83,8 @@ export function AIDialog({ onInsert, children }: AIDialogProps) {
           variantCount,
         }),
       });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error || "Generation failed");
+      const d = await safeJson<{ error?: string; variants?: Variant[] }>(r);
+      if (!r.ok || !d) throw new Error(errorFromResponse(r, d));
       setVariants(d.variants || []);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Generation failed");

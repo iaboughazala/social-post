@@ -40,6 +40,7 @@ import {
 import { cn } from "@/lib/utils";
 import { PlatformPreview, type Platform } from "@/components/posts/platform-preview";
 import { AIDialog } from "@/components/posts/ai-dialog";
+import { safeJson, errorFromResponse } from "@/lib/fetch-json";
 
 interface ComposeFormData {
   content: string;
@@ -164,11 +165,11 @@ export default function ComposePage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-    const d = await r.json();
-    if (!r.ok) {
-      throw new Error(d.error || "Failed to save post");
+    const d = await safeJson<{ error?: string; id?: string }>(r);
+    if (!r.ok || !d) {
+      throw new Error(errorFromResponse(r, d));
     }
-    return d;
+    return d as { id: string };
   }
 
   async function handleSaveDraft(data: ComposeFormData) {
@@ -211,8 +212,8 @@ export default function ComposePage() {
       if (!post?.id) throw new Error("No post id returned");
 
       const r = await fetch(`/api/posts/${post.id}/publish`, { method: "POST" });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error || "Publish failed");
+      const d = await safeJson<{ error?: string; results?: { status: string }[] }>(r);
+      if (!r.ok || !d) throw new Error(errorFromResponse(r, d));
 
       const failed = (d.results || []).filter((x: { status: string }) => x.status === "failed");
       if (failed.length > 0) {

@@ -29,6 +29,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, RefreshCw, Unlink, Loader2 } from "lucide-react";
+import { safeJson, errorFromResponse } from "@/lib/fetch-json";
 
 type Platform = "facebook" | "instagram" | "twitter" | "linkedin" | "bluesky";
 
@@ -163,8 +164,13 @@ export default function AccountsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pageToken: fbToken.trim() }),
       });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error || "Failed");
+      const d = await safeJson<{
+        error?: string;
+        saved?: Array<{ name: string }>;
+        account?: { name: string };
+        note?: string;
+      }>(r);
+      if (!r.ok || !d) throw new Error(errorFromResponse(r, d));
       const savedList: Array<{ name: string }> = Array.isArray(d.saved)
         ? d.saved
         : d.account
@@ -198,8 +204,8 @@ export default function AccountsPage() {
           appPassword: bskyPassword.trim(),
         }),
       });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error || "Failed");
+      const d = await safeJson<{ error?: string }>(r);
+      if (!r.ok || !d) throw new Error(errorFromResponse(r, d));
       toast.success("Bluesky connected");
       setBskyOpen(false);
       setBskyHandle("");
