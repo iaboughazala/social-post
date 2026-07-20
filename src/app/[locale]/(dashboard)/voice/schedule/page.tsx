@@ -16,7 +16,8 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-import { Calendar, Loader2, Plus, Save, X } from "lucide-react";
+import { Calendar, Edit3, Loader2, Plus, Save, X } from "lucide-react";
+import { EditPostDialog } from "@/components/posts/edit-post-dialog";
 
 const DAYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
 const PLATFORMS = ["linkedin", "twitter", "facebook", "instagram", "bluesky", "wasla"] as const;
@@ -67,6 +68,7 @@ export default function SchedulePage() {
   const [timezone, setTimezone] = useState("Asia/Riyadh");
   const [isActive, setIsActive] = useState(true);
   const [upcoming, setUpcoming] = useState<UpcomingPost[]>([]);
+  const [editingPost, setEditingPost] = useState<UpcomingPost | null>(null);
 
   async function loadUpcoming() {
     try {
@@ -330,12 +332,36 @@ export default function SchedulePage() {
                       {post.content.slice(0, 200)}
                     </p>
                   </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setEditingPost(post)}
+                    className="shrink-0"
+                    aria-label="Edit"
+                  >
+                    <Edit3 className="size-4" />
+                  </Button>
                 </CardContent>
               </Card>
             ))}
           </div>
         )}
       </div>
+
+      <EditPostDialog
+        open={editingPost !== null}
+        onOpenChange={(open) => !open && setEditingPost(null)}
+        postId={editingPost?.id ?? null}
+        initialContent={editingPost?.content ?? ""}
+        onSaved={(newContent) => {
+          if (!editingPost) return;
+          setUpcoming((prev) =>
+            prev.map((p) =>
+              p.id === editingPost.id ? { ...p, content: newContent } : p
+            )
+          );
+        }}
+      />
     </div>
   );
 }

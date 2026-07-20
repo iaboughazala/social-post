@@ -18,7 +18,9 @@ import {
   Loader2,
   Sparkles,
   ExternalLink,
+  Edit3,
 } from "lucide-react";
+import { EditPostDialog } from "@/components/posts/edit-post-dialog";
 import {
   FacebookIcon,
   InstagramIcon,
@@ -110,6 +112,7 @@ export default function PostsPage() {
   const [loading, setLoading] = useState(true);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [editingPost, setEditingPost] = useState<ApiPost | null>(null);
 
   async function load(status: PostStatus, page: number) {
     setLoading(true);
@@ -342,6 +345,16 @@ export default function PostsPage() {
                     </div>
 
                     <div className="flex items-center justify-end gap-1">
+                      {(post.status === "scheduled" || post.status === "draft" || post.status === "failed") && (
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          title={t("common.edit")}
+                          onClick={() => setEditingPost(post)}
+                        >
+                          <Edit3 className="size-3.5" />
+                        </Button>
+                      )}
                       {post.status === "draft" && isAI && (
                         <Button
                           variant="ghost"
@@ -413,6 +426,21 @@ export default function PostsPage() {
           </div>
         </div>
       )}
+
+      <EditPostDialog
+        open={editingPost !== null}
+        onOpenChange={(open) => !open && setEditingPost(null)}
+        postId={editingPost?.id ?? null}
+        initialContent={editingPost?.content ?? ""}
+        onSaved={(newContent) => {
+          if (!editingPost) return;
+          setPosts((prev) =>
+            prev.map((p) =>
+              p.id === editingPost.id ? { ...p, content: newContent } : p
+            )
+          );
+        }}
+      />
     </div>
   );
 }
