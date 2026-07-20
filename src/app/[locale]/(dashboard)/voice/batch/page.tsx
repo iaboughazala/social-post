@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Sparkles } from "lucide-react";
+import { safeJson, errorFromResponse } from "@/lib/fetch-json";
 
 interface Topic {
   id: string;
@@ -58,8 +59,17 @@ export default function BatchPage() {
           topicIds: selected.size > 0 ? Array.from(selected) : undefined,
         }),
       });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error || "Batch failed");
+      const d = await safeJson<{
+        requested: number;
+        created: number;
+        failed: number;
+        error?: string;
+      }>(r);
+      if (!r.ok || !d) {
+        // Common case: nginx 504 while the backend keeps generating.
+        // Tell the user posts likely made it and to check the queue.
+        throw new Error(errorFromResponse(r, d));
+      }
       setResult({
         requested: d.requested,
         created: d.created,
