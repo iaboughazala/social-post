@@ -1,4 +1,9 @@
-import type { StyleProfile, SamplePost, ContentTopic } from "@prisma/client";
+import type {
+  StyleProfile,
+  SamplePost,
+  ContentTopic,
+  NarrativeStyle,
+} from "@prisma/client";
 import { BASE_VOICE } from "./base-voice";
 
 function safeJsonArray(raw: string | null | undefined): string[] {
@@ -15,6 +20,7 @@ export function buildSystemPrompt(opts: {
   styleProfile?: StyleProfile | null;
   samples?: SamplePost[];
   topic?: ContentTopic | null;
+  narrative?: NarrativeStyle | null;
 }): string {
   const parts: string[] = [BASE_VOICE];
 
@@ -88,13 +94,27 @@ ${examples}
       `
 ---
 
-**المحور المستهدف:** ${opts.topic.title}
+**المحور المستهدف (Content Topic — ماذا نتحدث):** ${opts.topic.title}
 
 ${opts.topic.description}
 
 **Frameworks ذات صلة:** ${frameworks.join(" · ")}
 
 **Hashtags المقترحة:** ${hashtags.join(" ")}
+`.trim()
+    );
+  }
+
+  if (opts.narrative) {
+    parts.push(
+      `
+---
+
+**الأسلوب السردي (Narrative Style — كيف نحكي):** ${opts.narrative.name}
+
+${opts.narrative.description}
+
+التزم بهذا الشكل السردي. لا تخلط بين أساليب سردية مختلفة في نفس البوست.
 `.trim()
     );
   }

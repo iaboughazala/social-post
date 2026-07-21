@@ -88,6 +88,7 @@ model Team {
   styleProfile       StyleProfile?
   samplePosts        SamplePost[]
   activeForUsers     User[]              @relation("ActiveTeam")
+  narrativeStyles    NarrativeStyle[]
 
   @@map("teams")
 }
@@ -279,21 +280,23 @@ model ContentTopic {
 }
 
 model Generation {
-  id           String   @id @default(cuid())
-  userId       String
-  teamId       String
-  topicId      String?
-  prompt       String   @db.Text
-  context      String?  @db.Text
-  variantCount Int      @default(3)
-  rawResponse  String?  @db.Text
-  model        String?
-  createdAt    DateTime @default(now())
+  id               String   @id @default(cuid())
+  userId           String
+  teamId           String
+  topicId          String?
+  narrativeStyleId String?
+  prompt           String   @db.Text
+  context          String?  @db.Text
+  variantCount     Int      @default(3)
+  rawResponse      String?  @db.Text
+  model            String?
+  createdAt        DateTime @default(now())
 
-  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  team     Team          @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  topic    ContentTopic? @relation(fields: [topicId], references: [id], onDelete: SetNull)
-  variants PostVariant[]
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team           Team            @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  topic          ContentTopic?   @relation(fields: [topicId], references: [id], onDelete: SetNull)
+  narrativeStyle NarrativeStyle? @relation(fields: [narrativeStyleId], references: [id], onDelete: SetNull)
+  variants       PostVariant[]
 
   @@index([userId, createdAt])
   @@index([teamId, createdAt])
@@ -316,6 +319,32 @@ model PostVariant {
 
   @@index([generationId, variantIndex])
   @@map("post_variants")
+}
+
+/**
+ * A narrative style is a storytelling pattern — case study, lesson learned,
+ * contrarian opinion, etc. Independent of what the post is ABOUT (that's
+ * ContentTopic). Both dimensions get woven into the system prompt and the
+ * batch generator interleaves across them so 20 consecutive posts don't
+ * share the same subject OR the same story shape.
+ */
+model NarrativeStyle {
+  id          String   @id @default(cuid())
+  teamId      String
+  slug        String
+  name        String
+  description String   @db.Text
+  isActive    Boolean  @default(true)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  team        Team         @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  generations Generation[]
+
+  @@unique([teamId, slug])
+  @@index([teamId, isActive, order])
+  @@map("narrative_styles")
 }
 
 model PublishingSchedule {
