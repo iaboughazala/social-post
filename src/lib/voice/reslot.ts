@@ -44,7 +44,7 @@ export async function reslotTeam(teamId: string): Promise<{
 
   const slots = computeNextSlots(schedule, new Date(), posts.length);
   if (slots.length < posts.length) {
-    // Not enough slots in the next 60 days for the whole queue — reslot what we can.
+    // Not enough slots inside the horizon for the whole queue — reslot what we can.
     // Remaining posts stay with their old scheduledAt so nothing gets orphaned.
   }
 

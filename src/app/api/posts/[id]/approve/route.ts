@@ -69,7 +69,7 @@ export async function POST(
   const slot = pickNextOpenSlot(schedule, new Date(), takenTimes);
   if (!slot) {
     return NextResponse.json(
-      { error: "No available slot in the next 60 days" },
+      { error: "No available slot — schedule may be empty or has no upcoming days/times." },
       { status: 500 }
     );
   }

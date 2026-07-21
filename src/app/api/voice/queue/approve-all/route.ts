@@ -96,7 +96,7 @@ export async function POST() {
 
   if (openSlots.length === 0) {
     return NextResponse.json(
-      { error: "No available slots in the next 60 days" },
+      { error: "No available slots — schedule may be empty or has no upcoming days/times." },
       { status: 500 }
     );
   }

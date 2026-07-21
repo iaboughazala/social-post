@@ -103,8 +103,12 @@ export function computeNextSlots(
   const slots: Date[] = [];
   const tz = schedule.timezone;
 
-  // Iterate up to 60 days forward
-  for (let dayOffset = 0; dayOffset < 60 && slots.length < limit; dayOffset++) {
+  // Iterate forward until we have `limit` slots, capped at ~2 years so a
+  // pathological (empty days list / all-past times) call can't spin
+  // forever. At the highest realistic frequency (3-4 slots/day) this loop
+  // is still trivially fast.
+  const MAX_DAYS = 730;
+  for (let dayOffset = 0; dayOffset < MAX_DAYS && slots.length < limit; dayOffset++) {
     const probe = new Date(from.getTime() + dayOffset * 24 * 3600 * 1000);
     const wd = weekdayInTz(probe, tz);
     if (!schedule.days.includes(wd)) continue;
