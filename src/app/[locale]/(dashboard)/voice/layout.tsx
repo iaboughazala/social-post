@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 
 const TABS = [
   { key: "topics", href: "/voice/topics" },
+  { key: "narratives", href: "/voice/narratives" },
   { key: "samples", href: "/voice/samples" },
   { key: "style", href: "/voice/style" },
   { key: "batch", href: "/voice/batch" },

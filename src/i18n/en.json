@@ -109,6 +109,7 @@
     "subtitle": "Your personal writing style, topics, and sample posts — used by AI to write in your voice.",
     "tabs": {
       "topics": "Topics",
+      "narratives": "Narratives",
       "samples": "Samples",
       "style": "Style Profile",
       "batch": "Batch Generate",
@@ -128,6 +129,18 @@
         "frameworksLabel": "Frameworks (comma-separated)",
         "anglesLabel": "Angles (one per line)",
         "hooksLabel": "Hooks (one per line)"
+      },
+      "active": "Active",
+      "inactive": "Inactive"
+    },
+    "narratives": {
+      "title": "Narrative Styles",
+      "subtitle": "How you tell a story: case study, contrarian opinion, lesson learned… The generator cycles through active styles so no two posts share the same shape.",
+      "add": "Add style",
+      "empty": "No narrative styles yet.",
+      "form": {
+        "nameLabel": "Name",
+        "descriptionLabel": "Description (how the AI should write in this style)"
       },
       "active": "Active",
       "inactive": "Inactive"
