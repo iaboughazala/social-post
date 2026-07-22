@@ -68,6 +68,7 @@ export async function GET() {
   function mapPost(p: {
     id: string;
     content: string;
+    mediaUrls: string | null;
     scheduledAt: Date | null;
     publishedAt: Date | null;
     postAccounts: { socialAccount: { platform: string } }[];
@@ -76,6 +77,7 @@ export async function GET() {
     return {
       id: p.id,
       content: p.content,
+      mediaUrls: p.mediaUrls,
       scheduledAt: p.scheduledAt,
       publishedAt: p.publishedAt,
       platforms: Array.from(

@@ -6,6 +6,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { PostThumbnail } from "@/components/posts/post-thumbnail";
 
 interface ViewPostDialogProps {
   open: boolean;
@@ -33,19 +34,9 @@ export function ViewPostDialog({
         </DialogHeader>
         <div className="space-y-3 pt-2">
           {mediaUrls.length > 0 && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <div className="flex flex-wrap gap-2">
               {mediaUrls.map((url) => (
-                <div
-                  key={url}
-                  className="rounded-lg border overflow-hidden bg-muted/30"
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={url}
-                    alt="Attached"
-                    className="w-full h-32 object-cover"
-                  />
-                </div>
+                <PostThumbnail key={url} url={url} size="md" />
               ))}
             </div>
           )}

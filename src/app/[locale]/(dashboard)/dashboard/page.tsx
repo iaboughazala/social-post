@@ -36,6 +36,10 @@ import {
   WaslaIcon,
 } from "@/components/icons/social-icons";
 import { cn } from "@/lib/utils";
+import { ViewPostDialog } from "@/components/posts/view-post-dialog";
+import { PostActions } from "@/components/posts/post-actions";
+import { PostThumbnail, parseMediaUrls } from "@/components/posts/post-thumbnail";
+import { ExpandableText } from "@/components/posts/expandable-text";
 
 type Platform =
   | "facebook"
@@ -66,6 +70,7 @@ const PLATFORM_COLORS: Record<string, string> = {
 interface DashboardPost {
   id: string;
   content: string;
+  mediaUrls: string | null;
   scheduledAt: string | null;
   publishedAt: string | null;
   platforms: Platform[];
@@ -92,6 +97,7 @@ export default function DashboardPage() {
   const { data: session } = useSession();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [viewingPost, setViewingPost] = useState<DashboardPost | null>(null);
 
   useEffect(() => {
     fetch("/api/dashboard", { cache: "no-store" })
@@ -266,6 +272,7 @@ export default function DashboardPage() {
                             ? format(new Date(p.scheduledAt), "MMM d · HH:mm")
                             : "—"
                         }
+                        onView={() => setViewingPost(p)}
                       />
                     ))}
                   </div>
@@ -297,6 +304,7 @@ export default function DashboardPage() {
                             ? format(new Date(p.publishedAt), "MMM d · HH:mm")
                             : "—"
                         }
+                        onView={() => setViewingPost(p)}
                       />
                     ))}
                   </div>
@@ -306,18 +314,35 @@ export default function DashboardPage() {
           </div>
         </>
       )}
+
+      <ViewPostDialog
+        open={viewingPost !== null}
+        onOpenChange={(open) => !open && setViewingPost(null)}
+        content={viewingPost?.content ?? ""}
+        mediaUrls={parseMediaUrls(viewingPost?.mediaUrls)}
+      />
     </div>
   );
 }
 
-function PostRow({ post, dateLabel }: { post: DashboardPost; dateLabel: string }) {
+function PostRow({
+  post,
+  dateLabel,
+  onView,
+}: {
+  post: DashboardPost;
+  dateLabel: string;
+  onView: () => void;
+}) {
+  const media = parseMediaUrls(post.mediaUrls);
   return (
     <div className="flex items-start gap-3">
       <div className="min-w-[80px] shrink-0 text-xs text-muted-foreground pt-0.5">
         {dateLabel}
       </div>
+      <PostThumbnail url={media[0]} />
       <div className="flex-1 min-w-0">
-        <p className="text-sm line-clamp-2">{post.content}</p>
+        <ExpandableText text={post.content} clampLines={2} />
         <div className="flex items-center gap-1.5 mt-1">
           {post.platforms.map((p) => {
             const Icon = PLATFORM_ICONS[p];
@@ -334,6 +359,12 @@ function PostRow({ post, dateLabel }: { post: DashboardPost; dateLabel: string }
           )}
         </div>
       </div>
+      <PostActions
+        content={post.content}
+        onView={onView}
+        size="icon-xs"
+        className="shrink-0"
+      />
     </div>
   );
 }

@@ -16,9 +16,12 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-import { Calendar, Copy, Edit3, Eye, Loader2, Plus, Save, X } from "lucide-react";
+import { Calendar, Loader2, Plus, Save, X } from "lucide-react";
 import { EditPostDialog } from "@/components/posts/edit-post-dialog";
 import { ViewPostDialog } from "@/components/posts/view-post-dialog";
+import { PostActions } from "@/components/posts/post-actions";
+import { PostThumbnail, parseMediaUrls } from "@/components/posts/post-thumbnail";
+import { ExpandableText } from "@/components/posts/expandable-text";
 
 const DAYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
 const PLATFORMS = ["linkedin", "twitter", "facebook", "instagram", "bluesky", "wasla"] as const;
@@ -49,16 +52,6 @@ interface UpcomingPost {
   topic: string | null;
 }
 
-function parseMediaUrls(raw: string | null | undefined): string[] {
-  if (!raw) return [];
-  try {
-    const p = JSON.parse(raw);
-    return Array.isArray(p) ? p.map(String) : [];
-  } catch {
-    return [];
-  }
-}
-
 function parseArr(raw: string | null | undefined): string[] {
   if (!raw) return [];
   try {
@@ -82,15 +75,6 @@ export default function SchedulePage() {
   const [upcoming, setUpcoming] = useState<UpcomingPost[]>([]);
   const [editingPost, setEditingPost] = useState<UpcomingPost | null>(null);
   const [viewingPost, setViewingPost] = useState<UpcomingPost | null>(null);
-
-  const copyPost = async (post: UpcomingPost) => {
-    try {
-      await navigator.clipboard.writeText(post.content);
-      toast.success("Copied to clipboard");
-    } catch {
-      toast.error("Copy failed");
-    }
-  };
 
   async function loadUpcoming() {
     try {
@@ -325,67 +309,50 @@ export default function SchedulePage() {
           </Card>
         ) : (
           <div className="grid gap-2">
-            {upcoming.map((post) => (
-              <Card key={post.id}>
-                <CardContent className="py-3 flex items-start gap-3">
-                  <div className="min-w-[130px] shrink-0 text-sm font-medium">
-                    <div>{format(new Date(post.scheduledAt), "MMM d, yyyy")}</div>
-                    <div className="text-muted-foreground">
-                      {format(new Date(post.scheduledAt), "EEE · HH:mm")}
+            {upcoming.map((post) => {
+              const media = parseMediaUrls(post.mediaUrls);
+              return (
+                <Card key={post.id}>
+                  <CardContent className="py-3 flex items-start gap-3">
+                    <div className="min-w-[130px] shrink-0 text-sm font-medium">
+                      <div>{format(new Date(post.scheduledAt), "MMM d, yyyy")}</div>
+                      <div className="text-muted-foreground">
+                        {format(new Date(post.scheduledAt), "EEE · HH:mm")}
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex-1 min-w-0 space-y-1">
-                    <div className="flex flex-wrap gap-1.5">
-                      {post.topic && (
-                        <Badge className="bg-muted text-muted-foreground">
-                          {post.topic}
-                        </Badge>
-                      )}
-                      {post.platforms.map((p) => (
-                        <Badge
-                          key={p}
-                          className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 capitalize"
-                        >
-                          {p}
-                        </Badge>
-                      ))}
+                    <PostThumbnail url={media[0]} />
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <div className="flex flex-wrap gap-1.5">
+                        {post.topic && (
+                          <Badge className="bg-muted text-muted-foreground">
+                            {post.topic}
+                          </Badge>
+                        )}
+                        {post.platforms.map((p) => (
+                          <Badge
+                            key={p}
+                            className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 capitalize"
+                          >
+                            {p}
+                          </Badge>
+                        ))}
+                      </div>
+                      <ExpandableText
+                        text={post.content}
+                        clampLines={2}
+                        className="text-muted-foreground"
+                      />
                     </div>
-                    <p className="text-xs text-muted-foreground line-clamp-2">
-                      {post.content.slice(0, 200)}
-                    </p>
-                  </div>
-                  <div className="flex gap-0.5 shrink-0">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setViewingPost(post)}
-                      aria-label="View"
-                      title="View full post"
-                    >
-                      <Eye className="size-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => copyPost(post)}
-                      aria-label="Copy"
-                      title="Copy content to clipboard"
-                    >
-                      <Copy className="size-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setEditingPost(post)}
-                      aria-label="Edit"
-                      title="Edit content"
-                    >
-                      <Edit3 className="size-4" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                    <PostActions
+                      content={post.content}
+                      onView={() => setViewingPost(post)}
+                      onEdit={() => setEditingPost(post)}
+                      className="shrink-0"
+                    />
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         )}
       </div>

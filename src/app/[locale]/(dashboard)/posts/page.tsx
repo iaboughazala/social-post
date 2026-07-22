@@ -21,6 +21,10 @@ import {
   Edit3,
 } from "lucide-react";
 import { EditPostDialog } from "@/components/posts/edit-post-dialog";
+import { ViewPostDialog } from "@/components/posts/view-post-dialog";
+import { PostActions } from "@/components/posts/post-actions";
+import { PostThumbnail, parseMediaUrls } from "@/components/posts/post-thumbnail";
+import { ExpandableText } from "@/components/posts/expandable-text";
 import {
   FacebookIcon,
   InstagramIcon,
@@ -55,15 +59,6 @@ interface ApiPost {
   sourceVariant: { id: string } | null;
 }
 
-function parseMediaUrls(raw: string | null | undefined): string[] {
-  if (!raw) return [];
-  try {
-    const p = JSON.parse(raw);
-    return Array.isArray(p) ? p.map(String) : [];
-  } catch {
-    return [];
-  }
-}
 
 const PLATFORM_ICONS: Record<Platform, React.ElementType> = {
   facebook: FacebookIcon,
@@ -124,6 +119,7 @@ export default function PostsPage() {
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editingPost, setEditingPost] = useState<ApiPost | null>(null);
+  const [viewingPost, setViewingPost] = useState<ApiPost | null>(null);
 
   async function load(status: PostStatus, page: number) {
     setLoading(true);
@@ -291,18 +287,22 @@ export default function PostsPage() {
                   post.scheduledAt ||
                   post.createdAt;
                 const isAI = !!post.sourceVariant;
+                const media = parseMediaUrls(post.mediaUrls);
                 return (
                   <div
                     key={post.id}
-                    className="grid grid-cols-1 sm:grid-cols-[1fr_100px_130px_100px_140px_80px] gap-2 sm:gap-4 items-center px-4 py-3 hover:bg-muted/20 transition-colors"
+                    className="grid grid-cols-1 sm:grid-cols-[1fr_100px_130px_100px_140px_140px] gap-2 sm:gap-4 items-start px-4 py-3 hover:bg-muted/20 transition-colors"
                   >
-                    <div className="min-w-0">
-                      <p className="text-sm line-clamp-2">{post.content}</p>
-                      {post.errorMsg && (
-                        <p className="text-xs text-destructive mt-0.5 truncate">
-                          {post.errorMsg}
-                        </p>
-                      )}
+                    <div className="min-w-0 flex items-start gap-3">
+                      <PostThumbnail url={media[0]} />
+                      <div className="min-w-0 flex-1">
+                        <ExpandableText text={post.content} clampLines={2} />
+                        {post.errorMsg && (
+                          <p className="text-xs text-destructive mt-0.5 truncate">
+                            {post.errorMsg}
+                          </p>
+                        )}
+                      </div>
                     </div>
 
                     <div>
@@ -355,17 +355,19 @@ export default function PostsPage() {
                       {format(new Date(displayDate), "HH:mm")}
                     </div>
 
-                    <div className="flex items-center justify-end gap-1">
-                      {(post.status === "scheduled" || post.status === "draft" || post.status === "failed") && (
-                        <Button
-                          variant="ghost"
-                          size="icon-xs"
-                          title={t("common.edit")}
-                          onClick={() => setEditingPost(post)}
-                        >
-                          <Edit3 className="size-3.5" />
-                        </Button>
-                      )}
+                    <div className="flex items-center justify-end gap-0.5">
+                      <PostActions
+                        content={post.content}
+                        onView={() => setViewingPost(post)}
+                        onEdit={
+                          post.status === "scheduled" ||
+                          post.status === "draft" ||
+                          post.status === "failed"
+                            ? () => setEditingPost(post)
+                            : undefined
+                        }
+                        size="icon-xs"
+                      />
                       {post.status === "draft" && isAI && (
                         <Button
                           variant="ghost"
@@ -437,6 +439,13 @@ export default function PostsPage() {
           </div>
         </div>
       )}
+
+      <ViewPostDialog
+        open={viewingPost !== null}
+        onOpenChange={(open) => !open && setViewingPost(null)}
+        content={viewingPost?.content ?? ""}
+        mediaUrls={parseMediaUrls(viewingPost?.mediaUrls)}
+      />
 
       <EditPostDialog
         open={editingPost !== null}
