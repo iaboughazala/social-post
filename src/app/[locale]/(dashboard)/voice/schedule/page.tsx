@@ -16,8 +16,10 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-import { Calendar, Edit3, Loader2, Plus, Save, X } from "lucide-react";
+import { Calendar, Copy, Edit3, Eye, Loader2, Plus, Save, X } from "lucide-react";
+import { toast } from "sonner";
 import { EditPostDialog } from "@/components/posts/edit-post-dialog";
+import { ViewPostDialog } from "@/components/posts/view-post-dialog";
 
 const DAYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
 const PLATFORMS = ["linkedin", "twitter", "facebook", "instagram", "bluesky", "wasla"] as const;
@@ -80,6 +82,16 @@ export default function SchedulePage() {
   const [isActive, setIsActive] = useState(true);
   const [upcoming, setUpcoming] = useState<UpcomingPost[]>([]);
   const [editingPost, setEditingPost] = useState<UpcomingPost | null>(null);
+  const [viewingPost, setViewingPost] = useState<UpcomingPost | null>(null);
+
+  const copyPost = async (post: UpcomingPost) => {
+    try {
+      await navigator.clipboard.writeText(post.content);
+      toast.success("Copied to clipboard");
+    } catch {
+      toast.error("Copy failed");
+    }
+  };
 
   async function loadUpcoming() {
     try {
@@ -343,21 +355,48 @@ export default function SchedulePage() {
                       {post.content.slice(0, 200)}
                     </p>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setEditingPost(post)}
-                    className="shrink-0"
-                    aria-label="Edit"
-                  >
-                    <Edit3 className="size-4" />
-                  </Button>
+                  <div className="flex gap-0.5 shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setViewingPost(post)}
+                      aria-label="View"
+                      title="View full post"
+                    >
+                      <Eye className="size-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => copyPost(post)}
+                      aria-label="Copy"
+                      title="Copy content to clipboard"
+                    >
+                      <Copy className="size-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setEditingPost(post)}
+                      aria-label="Edit"
+                      title="Edit content"
+                    >
+                      <Edit3 className="size-4" />
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             ))}
           </div>
         )}
       </div>
+
+      <ViewPostDialog
+        open={viewingPost !== null}
+        onOpenChange={(open) => !open && setViewingPost(null)}
+        content={viewingPost?.content ?? ""}
+        mediaUrls={parseMediaUrls(viewingPost?.mediaUrls)}
+      />
 
       <EditPostDialog
         open={editingPost !== null}
