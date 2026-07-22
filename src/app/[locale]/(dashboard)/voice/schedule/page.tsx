@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
+import Link from "next/link";
+import { ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -64,6 +66,7 @@ function parseArr(raw: string | null | undefined): string[] {
 
 export default function SchedulePage() {
   const t = useTranslations("voice.schedule");
+  const locale = useLocale();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [days, setDays] = useState<Set<string>>(new Set());
@@ -343,12 +346,24 @@ export default function SchedulePage() {
                         className="text-muted-foreground"
                       />
                     </div>
-                    <PostActions
-                      content={post.content}
-                      onView={() => setViewingPost(post)}
-                      onEdit={() => setEditingPost(post)}
-                      className="shrink-0"
-                    />
+                    <div className="flex items-center gap-0.5 shrink-0">
+                      <PostActions
+                        content={post.content}
+                        onView={() => setViewingPost(post)}
+                        onEdit={() => setEditingPost(post)}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-label="Open in Posts"
+                        title="Open in Posts (full list)"
+                        render={
+                          <Link href={`/${locale}/posts?status=scheduled`} />
+                        }
+                      >
+                        <ExternalLink className="size-4" />
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
               );

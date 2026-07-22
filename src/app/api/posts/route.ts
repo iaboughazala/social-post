@@ -30,10 +30,18 @@ export async function GET(request: NextRequest) {
       where.status = status;
     }
 
+    // Scheduled posts read most naturally in publish order (next-up first)
+    // so /posts?status=scheduled agrees with /voice/schedule. Every other
+    // status keeps the recency ordering the list has always used.
+    const orderBy =
+      status === "scheduled"
+        ? { scheduledAt: "asc" as const }
+        : { createdAt: "desc" as const };
+
     const [posts, total] = await Promise.all([
       db.post.findMany({
         where,
-        orderBy: { createdAt: "desc" },
+        orderBy,
         skip: (page - 1) * limit,
         take: limit,
         include: {

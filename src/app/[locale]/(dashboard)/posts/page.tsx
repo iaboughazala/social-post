@@ -106,10 +106,25 @@ const STATUS_STYLES: Record<
 
 const ITEMS_PER_PAGE = 10;
 
+const VALID_TABS = new Set<PostStatus>([
+  "all",
+  "draft",
+  "scheduled",
+  "publishing",
+  "published",
+  "failed",
+]);
+
+function initialTab(): PostStatus {
+  if (typeof window === "undefined") return "all";
+  const q = new URLSearchParams(window.location.search).get("status");
+  return q && VALID_TABS.has(q as PostStatus) ? (q as PostStatus) : "all";
+}
+
 export default function PostsPage() {
   const t = useTranslations();
   const locale = useLocale();
-  const [activeTab, setActiveTab] = useState<PostStatus>("all");
+  const [activeTab, setActiveTab] = useState<PostStatus>(initialTab);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [posts, setPosts] = useState<ApiPost[]>([]);
