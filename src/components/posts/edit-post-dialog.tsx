@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Save, Sparkles, Undo2 } from "lucide-react";
+import { Loader2, Save, Sparkles, Undo2, ImagePlus } from "lucide-react";
 import { safeJson, errorFromResponse } from "@/lib/fetch-json";
 
 interface EditPostDialogProps {
@@ -44,11 +44,14 @@ export function EditPostDialog({
   const [saving, setSaving] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
   const [previousText, setPreviousText] = useState<string | null>(null);
+  const [generatingImage, setGeneratingImage] = useState(false);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
       setText(initialContent);
       setPreviousText(null);
+      setImageUrl(null);
     }
   }, [open, initialContent]);
 
@@ -101,6 +104,24 @@ export function EditPostDialog({
     setPreviousText(null);
   };
 
+  const generateImage = async () => {
+    if (!postId || !text.trim()) return;
+    setGeneratingImage(true);
+    try {
+      const r = await fetch(`/api/posts/${postId}/generate-image`, {
+        method: "POST",
+      });
+      const d = await safeJson<{ url?: string; error?: string }>(r);
+      if (!r.ok || !d?.url) throw new Error(errorFromResponse(r, d));
+      setImageUrl(`${d.url}?t=${Date.now()}`);
+      toast.success("Image generated and attached");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Image generation failed");
+    } finally {
+      setGeneratingImage(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
@@ -119,6 +140,19 @@ export function EditPostDialog({
             dir="auto"
             disabled={regenerating}
           />
+          {imageUrl && (
+            <div className="rounded-lg border overflow-hidden bg-muted/30">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={imageUrl}
+                alt="Generated preview"
+                className="w-full max-h-64 object-contain bg-black/5"
+              />
+              <p className="text-xs text-muted-foreground px-3 py-2">
+                Attached to this post. It will be published with the next send.
+              </p>
+            </div>
+          )}
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <span className="text-xs text-muted-foreground">
               {text.length} characters
@@ -137,8 +171,21 @@ export function EditPostDialog({
               )}
               <Button
                 variant="outline"
+                onClick={generateImage}
+                disabled={saving || regenerating || generatingImage || !text.trim()}
+                title="Generate an on-brand image from this post"
+              >
+                {generatingImage ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <ImagePlus className="size-4" />
+                )}
+                Generate image
+              </Button>
+              <Button
+                variant="outline"
                 onClick={regenerate}
-                disabled={saving || regenerating || !text.trim()}
+                disabled={saving || regenerating || generatingImage || !text.trim()}
                 title="Rewrite this post through the voice engine using the current text as the idea"
               >
                 {regenerating ? (
@@ -151,13 +198,13 @@ export function EditPostDialog({
               <Button
                 variant="outline"
                 onClick={() => onOpenChange(false)}
-                disabled={saving || regenerating}
+                disabled={saving || regenerating || generatingImage}
               >
                 Cancel
               </Button>
               <Button
                 onClick={save}
-                disabled={saving || regenerating || !text.trim()}
+                disabled={saving || regenerating || generatingImage || !text.trim()}
               >
                 {saving ? (
                   <Loader2 className="size-4 animate-spin" />
