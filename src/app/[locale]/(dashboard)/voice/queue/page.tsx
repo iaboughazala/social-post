@@ -7,7 +7,17 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Check, CheckCheck, Copy, Edit3, Loader2, Trash2, X } from "lucide-react";
+import {
+  Check,
+  CheckCheck,
+  Copy,
+  CopyPlus,
+  Download,
+  Edit3,
+  Loader2,
+  Trash2,
+  X,
+} from "lucide-react";
 import { format } from "date-fns";
 import { safeJson, errorFromResponse } from "@/lib/fetch-json";
 
@@ -91,6 +101,45 @@ export default function QueuePage() {
     }
   };
 
+  /**
+   * Numbered dump of all queued posts, one after the other, separated
+   * by a horizontal rule. Suitable for pasting into Notes / Word for a
+   * batch review, or for downloading as a plain-text file.
+   */
+  const buildBatchText = (): string =>
+    items
+      .map((item, i) => {
+        const header = item.topic?.title
+          ? `${i + 1}. [${item.topic.title}]`
+          : `${i + 1}.`;
+        return `${header}\n\n${item.content}`;
+      })
+      .join("\n\n---\n\n");
+
+  const copyAll = async () => {
+    if (items.length === 0) return;
+    try {
+      await navigator.clipboard.writeText(buildBatchText());
+      toast.success(`Copied ${items.length} posts to clipboard`);
+    } catch {
+      toast.error("Copy failed");
+    }
+  };
+
+  const downloadAll = () => {
+    if (items.length === 0) return;
+    const blob = new Blob([buildBatchText()], {
+      type: "text/plain;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const stamp = format(new Date(), "yyyy-MM-dd-HHmm");
+    a.href = url;
+    a.download = `voice-queue-${stamp}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const approveAll = async () => {
     if (items.length === 0) return;
     if (!confirm(t("approveAllConfirm", { count: items.length }))) return;
@@ -135,17 +184,37 @@ export default function QueuePage() {
           <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
         </div>
         {items.length > 0 && (
-          <Button
-            onClick={approveAll}
-            disabled={approvingAll || busyId !== null}
-          >
-            {approvingAll ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <CheckCheck className="size-4" />
-            )}
-            {t("approveAll", { count: items.length })}
-          </Button>
+          <div className="flex gap-2 flex-wrap">
+            <Button
+              variant="outline"
+              onClick={copyAll}
+              disabled={approvingAll || busyId !== null}
+              title="Copy all queued posts as one numbered text block"
+            >
+              <CopyPlus className="size-4" />
+              Copy all
+            </Button>
+            <Button
+              variant="outline"
+              onClick={downloadAll}
+              disabled={approvingAll || busyId !== null}
+              title="Download all queued posts as a .txt file"
+            >
+              <Download className="size-4" />
+              Download
+            </Button>
+            <Button
+              onClick={approveAll}
+              disabled={approvingAll || busyId !== null}
+            >
+              {approvingAll ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <CheckCheck className="size-4" />
+              )}
+              {t("approveAll", { count: items.length })}
+            </Button>
+          </div>
         )}
       </div>
 
