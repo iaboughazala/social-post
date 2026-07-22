@@ -24,6 +24,12 @@ export async function PATCH(
   else if (typeof body.scheduledAt === "string") {
     data.scheduledAt = new Date(body.scheduledAt);
   }
+  if (Array.isArray(body.mediaUrls)) {
+    const urls = body.mediaUrls
+      .filter((u: unknown): u is string => typeof u === "string" && u.length > 0)
+      .slice(0, 10);
+    data.mediaUrls = urls.length > 0 ? JSON.stringify(urls) : null;
+  }
 
   const post = await db.post.update({ where: { id }, data });
   return NextResponse.json({ post });

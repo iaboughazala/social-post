@@ -38,6 +38,7 @@ export async function GET() {
     posts: posts.map((p) => ({
       id: p.id,
       content: p.content,
+      mediaUrls: p.mediaUrls,
       scheduledAt: p.scheduledAt,
       platforms: Array.from(
         new Set(p.postAccounts.map((pa) => pa.socialAccount.platform))

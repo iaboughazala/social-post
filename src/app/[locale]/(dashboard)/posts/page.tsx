@@ -43,6 +43,7 @@ type PostStatus = "all" | "draft" | "scheduled" | "publishing" | "published" | "
 interface ApiPost {
   id: string;
   content: string;
+  mediaUrls: string | null;
   status: string;
   scheduledAt: string | null;
   publishedAt: string | null;
@@ -52,6 +53,16 @@ interface ApiPost {
     socialAccount: { platform: string; name: string };
   }[];
   sourceVariant: { id: string } | null;
+}
+
+function parseMediaUrls(raw: string | null | undefined): string[] {
+  if (!raw) return [];
+  try {
+    const p = JSON.parse(raw);
+    return Array.isArray(p) ? p.map(String) : [];
+  } catch {
+    return [];
+  }
 }
 
 const PLATFORM_ICONS: Record<Platform, React.ElementType> = {
@@ -432,11 +443,18 @@ export default function PostsPage() {
         onOpenChange={(open) => !open && setEditingPost(null)}
         postId={editingPost?.id ?? null}
         initialContent={editingPost?.content ?? ""}
-        onSaved={(newContent) => {
+        initialMediaUrls={parseMediaUrls(editingPost?.mediaUrls)}
+        onSaved={({ content, mediaUrls }) => {
           if (!editingPost) return;
           setPosts((prev) =>
             prev.map((p) =>
-              p.id === editingPost.id ? { ...p, content: newContent } : p
+              p.id === editingPost.id
+                ? {
+                    ...p,
+                    content,
+                    mediaUrls: mediaUrls.length > 0 ? JSON.stringify(mediaUrls) : null,
+                  }
+                : p
             )
           );
         }}

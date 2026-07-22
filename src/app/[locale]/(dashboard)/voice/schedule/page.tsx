@@ -42,9 +42,20 @@ interface Schedule {
 interface UpcomingPost {
   id: string;
   content: string;
+  mediaUrls: string | null;
   scheduledAt: string;
   platforms: string[];
   topic: string | null;
+}
+
+function parseMediaUrls(raw: string | null | undefined): string[] {
+  if (!raw) return [];
+  try {
+    const p = JSON.parse(raw);
+    return Array.isArray(p) ? p.map(String) : [];
+  } catch {
+    return [];
+  }
 }
 
 function parseArr(raw: string | null | undefined): string[] {
@@ -353,11 +364,18 @@ export default function SchedulePage() {
         onOpenChange={(open) => !open && setEditingPost(null)}
         postId={editingPost?.id ?? null}
         initialContent={editingPost?.content ?? ""}
-        onSaved={(newContent) => {
+        initialMediaUrls={parseMediaUrls(editingPost?.mediaUrls)}
+        onSaved={({ content, mediaUrls }) => {
           if (!editingPost) return;
           setUpcoming((prev) =>
             prev.map((p) =>
-              p.id === editingPost.id ? { ...p, content: newContent } : p
+              p.id === editingPost.id
+                ? {
+                    ...p,
+                    content,
+                    mediaUrls: mediaUrls.length > 0 ? JSON.stringify(mediaUrls) : null,
+                  }
+                : p
             )
           );
         }}

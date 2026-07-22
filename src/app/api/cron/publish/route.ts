@@ -37,7 +37,10 @@ export async function GET(req: NextRequest) {
     const mediaUrls = post.mediaUrls
       ? (JSON.parse(post.mediaUrls) as string[])
       : [];
-    const firstMedia = mediaUrls[0] || undefined;
+    const firstRaw = mediaUrls[0];
+    const firstMedia = firstRaw
+      ? (await import("@/lib/images/storage")).absoluteMediaUrl(firstRaw)
+      : undefined;
 
     let allSucceeded = true;
 

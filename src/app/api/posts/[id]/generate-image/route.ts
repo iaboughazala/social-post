@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { promises as fs } from "node:fs";
 import path from "node:path";
 import { getVoiceSession } from "@/lib/voice/session";
 import { runClaude, getGenerateModel } from "@/lib/voice/generate";
 import { renderBrandSvg } from "@/lib/images/brand-template";
+import { MEDIA_DIR, ensureMediaDir, mediaUrl } from "@/lib/images/storage";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
-
-const OUTPUT_DIR = path.join(process.cwd(), "public", "generated");
 
 interface Extracted {
   headline: string;
@@ -91,20 +89,20 @@ export async function POST(
   });
 
   const sharp = (await import("sharp")).default;
-  await fs.mkdir(OUTPUT_DIR, { recursive: true });
-  const filename = `post-${post.id}-${Date.now()}.png`;
-  const outPath = path.join(OUTPUT_DIR, filename);
+  await ensureMediaDir();
+  const filename = `gen-${post.id}-${Date.now()}.png`;
+  const outPath = path.join(MEDIA_DIR, filename);
   await sharp(Buffer.from(svg)).png({ quality: 90 }).toFile(outPath);
 
-  const publicUrl = `/generated/${filename}`;
+  const publicUrl = mediaUrl(filename);
 
-  // Attach to the post — replace any existing generated images (they start
-  // with /generated/post-<id>-), keep user-uploaded media untouched.
+  // Attach to the post — replace any prior generated image for this post
+  // (they share the gen-<postId>- prefix), keep user uploads untouched.
   const existing: string[] = post.mediaUrls
     ? (JSON.parse(post.mediaUrls) as string[])
     : [];
   const kept = existing.filter(
-    (u) => !u.startsWith(`/generated/post-${post.id}-`)
+    (u) => !u.includes(`/gen-${post.id}-`)
   );
   const nextUrls = [publicUrl, ...kept];
   await db.post.update({

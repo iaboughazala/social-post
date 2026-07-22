@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -11,7 +11,15 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Save, Sparkles, Undo2, ImagePlus } from "lucide-react";
+import {
+  Loader2,
+  Save,
+  Sparkles,
+  Undo2,
+  ImagePlus,
+  Upload,
+  X,
+} from "lucide-react";
 import { safeJson, errorFromResponse } from "@/lib/fetch-json";
 
 interface EditPostDialogProps {
@@ -19,41 +27,41 @@ interface EditPostDialogProps {
   onOpenChange: (open: boolean) => void;
   postId: string | null;
   initialContent: string;
-  onSaved?: (newContent: string) => void;
+  initialMediaUrls?: string[];
+  onSaved?: (payload: { content: string; mediaUrls: string[] }) => void;
 }
 
 /**
- * Shared modal for editing a Post's content — used from Schedule's
- * upcoming list and Posts page's row actions. PATCHes /api/posts/[id]
- * with { content }. The row it's opened from is responsible for
- * refreshing / patching local state via onSaved.
- *
- * Regenerate calls POST /api/posts/[id]/regenerate which runs the voice
- * engine on the current text as a seed. It does NOT save — the user
- * reviews the result and clicks Save (or Undo to restore the previous
- * text). One-step undo only, in-memory.
+ * Shared modal for editing a Post's content + attached images. Saves via
+ * PATCH /api/posts/[id] with { content, mediaUrls }. Regenerate rewrites
+ * the text through the voice engine; Generate image renders an on-brand
+ * SVG→PNG for the post; Upload attaches an image from disk. Removals are
+ * committed only on Save so users can back out with Cancel.
  */
 export function EditPostDialog({
   open,
   onOpenChange,
   postId,
   initialContent,
+  initialMediaUrls = [],
   onSaved,
 }: EditPostDialogProps) {
   const [text, setText] = useState(initialContent);
+  const [mediaUrls, setMediaUrls] = useState<string[]>(initialMediaUrls);
   const [saving, setSaving] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
   const [previousText, setPreviousText] = useState<string | null>(null);
   const [generatingImage, setGeneratingImage] = useState(false);
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (open) {
       setText(initialContent);
+      setMediaUrls(initialMediaUrls);
       setPreviousText(null);
-      setImageUrl(null);
     }
-  }, [open, initialContent]);
+  }, [open, initialContent, initialMediaUrls]);
 
   const save = async () => {
     if (!postId) return;
@@ -62,12 +70,12 @@ export function EditPostDialog({
       const r = await fetch(`/api/posts/${postId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: text }),
+        body: JSON.stringify({ content: text, mediaUrls }),
       });
       const d = await safeJson<{ error?: string }>(r);
       if (!r.ok) throw new Error(errorFromResponse(r, d));
       toast.success("Saved");
-      onSaved?.(text);
+      onSaved?.({ content: text, mediaUrls });
       onOpenChange(false);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed");
@@ -113,14 +121,49 @@ export function EditPostDialog({
       });
       const d = await safeJson<{ url?: string; error?: string }>(r);
       if (!r.ok || !d?.url) throw new Error(errorFromResponse(r, d));
-      setImageUrl(`${d.url}?t=${Date.now()}`);
-      toast.success("Image generated and attached");
+      // Server already persisted the URL onto the post, but the dialog
+      // has to reflect it locally so the preview shows immediately and
+      // the next Save doesn't discard it.
+      setMediaUrls((prev) => {
+        const withoutOldGen = prev.filter(
+          (u) => !u.includes(`/gen-${postId}-`)
+        );
+        return [d.url!, ...withoutOldGen];
+      });
+      toast.success("Image generated");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Image generation failed");
     } finally {
       setGeneratingImage(false);
     }
   };
+
+  const onFilesPicked = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setUploading(true);
+    try {
+      for (const file of Array.from(files)) {
+        const fd = new FormData();
+        fd.append("file", file);
+        const r = await fetch("/api/media/upload", { method: "POST", body: fd });
+        const d = await safeJson<{ url?: string; error?: string }>(r);
+        if (!r.ok || !d?.url) throw new Error(errorFromResponse(r, d));
+        setMediaUrls((prev) => [...prev, d.url!]);
+      }
+      toast.success("Uploaded");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Upload failed");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const removeImage = (url: string) => {
+    setMediaUrls((prev) => prev.filter((u) => u !== url));
+  };
+
+  const busy = saving || regenerating || generatingImage || uploading;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -136,33 +179,58 @@ export function EditPostDialog({
           <Textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
-            className="min-h-[280px] font-sans"
+            className="min-h-[240px] font-sans"
             dir="auto"
             disabled={regenerating}
           />
-          {imageUrl && (
-            <div className="rounded-lg border overflow-hidden bg-muted/30">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={imageUrl}
-                alt="Generated preview"
-                className="w-full max-h-64 object-contain bg-black/5"
-              />
-              <p className="text-xs text-muted-foreground px-3 py-2">
-                Attached to this post. It will be published with the next send.
-              </p>
+
+          {mediaUrls.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {mediaUrls.map((url) => (
+                <div
+                  key={url}
+                  className="relative group rounded-lg border overflow-hidden bg-muted/30"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={url}
+                    alt="Attached"
+                    className="w-full h-32 object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeImage(url)}
+                    className="absolute top-1 right-1 p-1 rounded-md bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/80"
+                    title="Remove image"
+                    disabled={busy}
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                </div>
+              ))}
             </div>
           )}
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/gif"
+            multiple
+            hidden
+            onChange={(e) => onFilesPicked(e.target.files)}
+          />
+
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <span className="text-xs text-muted-foreground">
               {text.length} characters
+              {mediaUrls.length > 0 && ` · ${mediaUrls.length} image(s)`}
             </span>
             <div className="flex gap-2 flex-wrap">
               {previousText !== null && (
                 <Button
                   variant="ghost"
                   onClick={undo}
-                  disabled={saving || regenerating}
+                  disabled={busy}
                   title="Restore the text before regeneration"
                 >
                   <Undo2 className="size-4" />
@@ -171,8 +239,21 @@ export function EditPostDialog({
               )}
               <Button
                 variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={busy}
+                title="Upload an image from your device"
+              >
+                {uploading ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Upload className="size-4" />
+                )}
+                Upload
+              </Button>
+              <Button
+                variant="outline"
                 onClick={generateImage}
-                disabled={saving || regenerating || generatingImage || !text.trim()}
+                disabled={busy || !text.trim()}
                 title="Generate an on-brand image from this post"
               >
                 {generatingImage ? (
@@ -185,7 +266,7 @@ export function EditPostDialog({
               <Button
                 variant="outline"
                 onClick={regenerate}
-                disabled={saving || regenerating || generatingImage || !text.trim()}
+                disabled={busy || !text.trim()}
                 title="Rewrite this post through the voice engine using the current text as the idea"
               >
                 {regenerating ? (
@@ -198,14 +279,11 @@ export function EditPostDialog({
               <Button
                 variant="outline"
                 onClick={() => onOpenChange(false)}
-                disabled={saving || regenerating || generatingImage}
+                disabled={busy}
               >
                 Cancel
               </Button>
-              <Button
-                onClick={save}
-                disabled={saving || regenerating || generatingImage || !text.trim()}
-              >
+              <Button onClick={save} disabled={busy || !text.trim()}>
                 {saving ? (
                   <Loader2 className="size-4 animate-spin" />
                 ) : (
