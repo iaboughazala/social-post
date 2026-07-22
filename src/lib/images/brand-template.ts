@@ -101,7 +101,7 @@ export function renderBrandSvg({
   <rect x="140" y="130" width="800" height="2" fill="url(#accent)"/>
 
   <!-- Arabic headline (RTL) -->
-  <g font-family="'Tajawal','Cairo','Noto Naskh Arabic','Segoe UI',sans-serif" font-weight="800" fill="${WHITE}" text-anchor="middle">
+  <g font-family="'Noto Sans Arabic','Noto Kufi Arabic','Noto Naskh Arabic',sans-serif" font-weight="800" fill="${WHITE}" text-anchor="middle">
     <text x="${SIZE / 2}" y="235" font-size="72" direction="rtl">${line1}</text>
     ${line2 ? `<text x="${SIZE / 2}" y="325" font-size="72" direction="rtl">${line2}</text>` : ""}
   </g>
@@ -111,7 +111,7 @@ export function renderBrandSvg({
     s
       ? `<g transform="translate(${SIZE / 2}, ${line2 ? 400 : 340})">
     <rect x="-260" y="0" width="520" height="80" rx="12" ry="12" fill="${MINT}"/>
-    <text x="0" y="55" font-family="'Inter','Segoe UI',Arial,sans-serif" font-weight="800" font-size="40" fill="${NAVY_DEEP}" text-anchor="middle" letter-spacing="0.5">${s}</text>
+    <text x="0" y="55" font-family="'Noto Sans','DejaVu Sans','Inter',sans-serif" font-weight="800" font-size="40" fill="${NAVY_DEEP}" text-anchor="middle" letter-spacing="0.5">${s}</text>
   </g>`
       : ""
   }
@@ -124,8 +124,8 @@ export function renderBrandSvg({
     <circle cx="45" cy="38" r="10" fill="${WHITE}" fill-opacity="0.9"/>
     <path d="M 25 60 Q 45 45 65 60 L 65 72 L 25 72 Z" fill="${WHITE}" fill-opacity="0.9"/>
     <!-- Name -->
-    <text x="90" y="42" font-family="'Inter','Segoe UI',Arial,sans-serif" font-weight="700" font-size="22" fill="${NAVY_DEEP}">Islam</text>
-    <text x="90" y="70" font-family="'Inter','Segoe UI',Arial,sans-serif" font-weight="700" font-size="22" fill="${NAVY_DEEP}">${name.replace(/^Islam\s*/i, "") || "AbouGhazala"}</text>
+    <text x="90" y="42" font-family="'Noto Sans','DejaVu Sans','Inter',sans-serif" font-weight="700" font-size="22" fill="${NAVY_DEEP}">Islam</text>
+    <text x="90" y="70" font-family="'Noto Sans','DejaVu Sans','Inter',sans-serif" font-weight="700" font-size="22" fill="${NAVY_DEEP}">${name.replace(/^Islam\s*/i, "") || "AbouGhazala"}</text>
   </g>
 </svg>`;
 }
