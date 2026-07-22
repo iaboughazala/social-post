@@ -17,7 +17,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { Calendar, Copy, Edit3, Eye, Loader2, Plus, Save, X } from "lucide-react";
-import { toast } from "sonner";
 import { EditPostDialog } from "@/components/posts/edit-post-dialog";
 import { ViewPostDialog } from "@/components/posts/view-post-dialog";
 
