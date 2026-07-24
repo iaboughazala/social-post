@@ -385,6 +385,10 @@ export default function SchedulePage() {
         postId={editingPost?.id ?? null}
         initialContent={editingPost?.content ?? ""}
         initialMediaUrls={parseMediaUrls(editingPost?.mediaUrls)}
+        publishableStatus="scheduled"
+        onPublished={() => {
+          setUpcoming((prev) => prev.filter((p) => p.id !== editingPost?.id));
+        }}
         onSaved={({ content, mediaUrls }) => {
           if (!editingPost) return;
           setUpcoming((prev) =>

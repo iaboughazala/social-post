@@ -468,6 +468,12 @@ export default function PostsPage() {
         postId={editingPost?.id ?? null}
         initialContent={editingPost?.content ?? ""}
         initialMediaUrls={parseMediaUrls(editingPost?.mediaUrls)}
+        publishableStatus={
+          editingPost?.status === "draft" || editingPost?.status === "scheduled"
+            ? (editingPost.status as "draft" | "scheduled")
+            : null
+        }
+        onPublished={() => load(activeTab, currentPage)}
         onSaved={({ content, mediaUrls }) => {
           if (!editingPost) return;
           setPosts((prev) =>

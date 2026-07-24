@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Loader2,
   Save,
+  Send,
   Sparkles,
   Undo2,
   ImagePlus,
@@ -28,7 +29,10 @@ interface EditPostDialogProps {
   postId: string | null;
   initialContent: string;
   initialMediaUrls?: string[];
+  /** Enables the "Publish now" button. Pass "draft" or "scheduled". */
+  publishableStatus?: "draft" | "scheduled" | null;
   onSaved?: (payload: { content: string; mediaUrls: string[] }) => void;
+  onPublished?: () => void;
 }
 
 /**
@@ -44,11 +48,14 @@ export function EditPostDialog({
   postId,
   initialContent,
   initialMediaUrls = [],
+  publishableStatus = null,
   onSaved,
+  onPublished,
 }: EditPostDialogProps) {
   const [text, setText] = useState(initialContent);
   const [mediaUrls, setMediaUrls] = useState<string[]>(initialMediaUrls);
   const [saving, setSaving] = useState(false);
+  const [publishing, setPublishing] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
   const [previousText, setPreviousText] = useState<string | null>(null);
   const [generatingImage, setGeneratingImage] = useState(false);
@@ -163,7 +170,55 @@ export function EditPostDialog({
     setMediaUrls((prev) => prev.filter((u) => u !== url));
   };
 
-  const busy = saving || regenerating || generatingImage || uploading;
+  const publishNow = async () => {
+    if (!postId || !text.trim()) return;
+    if (
+      !confirm(
+        "Publish this post to all its selected platforms right now?"
+      )
+    ) {
+      return;
+    }
+    setPublishing(true);
+    try {
+      // Save any pending edits first so the publisher sees the latest text
+      // and media state, then trigger the platform publish.
+      const saveRes = await fetch(`/api/posts/${postId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: text, mediaUrls }),
+      });
+      const saveJson = await safeJson<{ error?: string }>(saveRes);
+      if (!saveRes.ok) throw new Error(errorFromResponse(saveRes, saveJson));
+
+      const pubRes = await fetch(`/api/posts/${postId}/publish`, {
+        method: "POST",
+      });
+      const pubJson = await safeJson<{
+        error?: string;
+        results?: { status: string; error?: string }[];
+      }>(pubRes);
+      if (!pubRes.ok) throw new Error(errorFromResponse(pubRes, pubJson));
+
+      const failed = (pubJson?.results || []).filter(
+        (r) => r.status === "failed"
+      );
+      if (failed.length > 0) {
+        toast.error(`Published with ${failed.length} platform failure(s)`);
+      } else {
+        toast.success("Published");
+      }
+      onPublished?.();
+      onOpenChange(false);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Publish failed");
+    } finally {
+      setPublishing(false);
+    }
+  };
+
+  const busy =
+    saving || publishing || regenerating || generatingImage || uploading;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -291,6 +346,21 @@ export function EditPostDialog({
                 )}
                 Save
               </Button>
+              {publishableStatus && (
+                <Button
+                  onClick={publishNow}
+                  disabled={busy || !text.trim()}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                  title="Save current edits and publish immediately"
+                >
+                  {publishing ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Send className="size-4" />
+                  )}
+                  Publish now
+                </Button>
+              )}
             </div>
           </div>
         </div>
