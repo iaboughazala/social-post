@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { useForm, Controller } from "react-hook-form";
 import { format } from "date-fns";
@@ -28,6 +28,9 @@ import {
   Send,
   Save,
   Image as ImageIcon,
+  ImagePlus,
+  Upload,
+  X,
   Loader2,
   AlertTriangle,
   Newspaper,
@@ -46,6 +49,7 @@ import { safeJson, errorFromResponse } from "@/lib/fetch-json";
 
 interface ComposeFormData {
   content: string;
+  mediaUrls: string[];
   platforms: Platform[];
   scheduleDate: Date | undefined;
   scheduleTime: string;
@@ -121,6 +125,7 @@ export default function ComposePage() {
   const { control, watch, setValue, handleSubmit } = useForm<ComposeFormData>({
     defaultValues: {
       content: "",
+      mediaUrls: [],
       platforms: [],
       scheduleDate: undefined,
       scheduleTime: "10:00",
@@ -129,10 +134,68 @@ export default function ComposePage() {
   });
 
   const content = watch("content");
+  const mediaUrls = watch("mediaUrls");
   const platforms = watch("platforms");
   const isScheduled = watch("isScheduled");
   const scheduleDate = watch("scheduleDate");
   const scheduleTime = watch("scheduleTime");
+
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [generatingImage, setGeneratingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const uploadImages = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setUploadingImage(true);
+    try {
+      const next = [...mediaUrls];
+      for (const file of Array.from(files)) {
+        const fd = new FormData();
+        fd.append("file", file);
+        const r = await fetch("/api/media/upload", { method: "POST", body: fd });
+        const d = await safeJson<{ url?: string; error?: string }>(r);
+        if (!r.ok || !d?.url) throw new Error(errorFromResponse(r, d));
+        next.push(d.url);
+      }
+      setValue("mediaUrls", next);
+      toast.success("Uploaded");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Upload failed");
+    } finally {
+      setUploadingImage(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const generateImage = async () => {
+    if (!content.trim()) {
+      toast.error("Write some content first");
+      return;
+    }
+    setGeneratingImage(true);
+    try {
+      const r = await fetch("/api/images/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: content.trim() }),
+      });
+      const d = await safeJson<{ url?: string; error?: string }>(r);
+      if (!r.ok || !d?.url) throw new Error(errorFromResponse(r, d));
+      setValue("mediaUrls", [d.url, ...mediaUrls]);
+      toast.success("Image generated");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Image generation failed");
+    } finally {
+      setGeneratingImage(false);
+    }
+  };
+
+  const removeImage = (url: string) => {
+    setValue(
+      "mediaUrls",
+      mediaUrls.filter((u) => u !== url)
+    );
+  };
 
   useEffect(() => {
     fetch("/api/accounts", { cache: "no-store" })
@@ -172,6 +235,7 @@ export default function ComposePage() {
 
   async function createPost(payload: {
     content: string;
+    mediaUrls?: string[];
     platforms: Platform[];
     status: "draft" | "scheduled";
     scheduledAt?: string;
@@ -197,6 +261,7 @@ export default function ComposePage() {
     try {
       await createPost({
         content: data.content.trim(),
+        mediaUrls: data.mediaUrls,
         platforms: data.platforms,
         status: "draft",
       });
@@ -222,6 +287,7 @@ export default function ComposePage() {
     try {
       const post = await createPost({
         content: data.content.trim(),
+        mediaUrls: data.mediaUrls,
         platforms: data.platforms,
         status: "draft", // create as draft first
       });
@@ -270,6 +336,7 @@ export default function ComposePage() {
     try {
       await createPost({
         content: data.content.trim(),
+        mediaUrls: data.mediaUrls,
         platforms: data.platforms,
         status: "scheduled",
         scheduledAt: dt.toISOString(),
@@ -355,7 +422,75 @@ export default function ComposePage() {
                           )}
                         >
                           {content.length} characters
+                          {mediaUrls.length > 0 && ` · ${mediaUrls.length} image(s)`}
                         </span>
+                      </div>
+
+                      {mediaUrls.length > 0 && (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                          {mediaUrls.map((url) => (
+                            <div
+                              key={url}
+                              className="relative group rounded-lg border overflow-hidden bg-muted/30"
+                            >
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={url}
+                                alt="Attached"
+                                className="w-full h-32 object-cover"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => removeImage(url)}
+                                className="absolute top-1 right-1 p-1 rounded-md bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/80"
+                                title="Remove image"
+                              >
+                                <X className="size-3.5" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp,image/gif"
+                        multiple
+                        hidden
+                        onChange={(e) => uploadImages(e.target.files)}
+                      />
+                      <div className="flex gap-2 flex-wrap">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={uploadingImage || generatingImage}
+                          title="Upload an image from your device"
+                        >
+                          {uploadingImage ? (
+                            <Loader2 className="size-4 animate-spin" />
+                          ) : (
+                            <Upload className="size-4" />
+                          )}
+                          Upload image
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={generateImage}
+                          disabled={uploadingImage || generatingImage || !content.trim()}
+                          title="Generate an on-brand image from this post"
+                        >
+                          {generatingImage ? (
+                            <Loader2 className="size-4 animate-spin" />
+                          ) : (
+                            <ImagePlus className="size-4" />
+                          )}
+                          Generate image
+                        </Button>
                       </div>
                     </div>
                   )}
@@ -554,7 +689,7 @@ export default function ComposePage() {
                     <TabsContent key={p} value={p}>
                       <PlatformPreview
                         content={content}
-                        mediaUrls={[]}
+                        mediaUrls={mediaUrls}
                         platform={p}
                       />
                     </TabsContent>
